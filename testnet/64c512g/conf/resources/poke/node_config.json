@@ -1,0 +1,11 @@
+{
+    "node" : {
+        "endpoints" : [
+            "127.0.0.1:18000"
+        ],
+        "ca_path" : "./client/ca.crt",
+        "cert_path" : "./client/client.crt",
+        "key_path" : "./client/client.key",
+        "passwd" : "123abc"
+    }
+}
