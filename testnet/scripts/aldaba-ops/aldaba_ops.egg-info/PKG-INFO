@@ -1,0 +1,22 @@
+Metadata-Version: 2.1
+Name: aldaba-ops
+Version: 1.0.0rc2
+Summary: aldaba2.0 operation tool
+Home-page: https://code.alipay.com/mychain/aldaba_ops
+Author: youxing
+Author-email: youxing.zys@antgroup.com
+License: MIT
+Keywords: aldaba,tools
+Platform: UNKNOWN
+Classifier: Development Status :: 1 - Alpha
+Classifier: Intended Audience :: Developers
+Classifier: Natural Language :: English
+Classifier: Topic :: Software Development :: Build Tools
+Classifier: License :: ANT_FIN :: ANT_FIN_GROUP
+Classifier: Programming Language :: Python
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.6
+Description-Content-Type: text/markdown
+
+long_description
+

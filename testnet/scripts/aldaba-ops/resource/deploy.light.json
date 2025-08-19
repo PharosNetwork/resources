@@ -1,0 +1,32 @@
+{
+  "chain_id": "aldaba-ops",
+  "domain_label": "domain0",
+  "domain_role": 0,
+  "genesis_conf": "../conf/genesis.conf",
+  "secret": {
+    "domain": {
+      "key_file": "resources/domain_keys/prime256v1/domain0/new.key",
+      "key_type": "prime256v1",
+      "key_passwd": "123abc"
+    },
+    "client": {
+      "ca_cert_file": "../conf/resources/portal/client/ca.crt",
+      "cert_file": "../conf/resources/portal/client/client.crt",
+      "key_file": "../conf/resources/portal/client/client.key",
+      "key_type": "prime256v1",
+      "key_passwd": ""
+    }
+  },
+  "run_user": "admin",
+  "run_root": "aldaba",
+  "deploy_dir": "/tmp",
+  "version": "2.0.0-rc1",
+  "docker_mode": false,
+  "docker_registry": "aldaba-registry-vpc.cn-shanghai.cr.aliyuncs.com/aldaba/",
+  "light": {
+    "ip": "127.0.0.1",
+    "client_tcp_port": 18130,
+    "domain_port": 19000,
+    "rpc_port": 19001
+  }
+}

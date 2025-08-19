@@ -1,0 +1,70 @@
+{
+  "build_root": "../",
+  "chain_id": "aldaba-ng",
+  "version": "2.0.0",
+  "run_user": "admin",
+  "deploy_root": "/tmp/aldaba-ng",
+  "genesis_tpl": "../conf/genesis.tpl.conf",
+  "mygrid" : {
+    "conf" : {
+      "enable_adaptive" : true,
+      "filepath" : "../conf/mygrid.conf.json"
+    },
+    "env" : {
+      "enable_adaptive" : true,
+      "filepath" : "../conf/mygrid.light.env.json"
+    }
+  },
+  "domain_key_type": "prime256v1",
+  "client_key_type": "prime256v1",
+  "docker": {
+    "enable": false,
+    "registry": "registry-vpc.cn-shanghai.aliyuncs.com/aldaba"
+  },
+  "aldaba": {
+    "args": [],
+    "env": {}
+  },
+  "storage": {
+    "args": [],
+    "env": {}
+  },
+  "common": {
+    "env": {},
+    "log": {
+      "aldaba": {
+        "filename": "../log/aldaba.log",
+        "max_file_size": 209715200,
+        "max_files": 50,
+        "level": "debug",
+        "flush": false
+      },
+      "vm": {
+        "filename": "../log/vm.log",
+        "max_file_size": 20971520,
+        "max_files": 50,
+        "level": "debug",
+        "flush": false
+      }
+    }
+  },
+  "domains": {
+    "domain0": {
+      "deploy_dir": "/tmp/aldaba-ng/domain0"
+      },
+      "domain_role": 0,
+      "domain_port": 19000,
+      "client_tcp_port": 18000,
+      "client_http_port": 18100,
+      "client_ws_port": 18200,
+      "client_wss_port": 18300,
+      "cluster": [
+        {
+          "ip": "127.0.0.1",
+          "start_port": 20000,
+          "instances": "light"
+        }
+      ]
+    }
+  }
+}
