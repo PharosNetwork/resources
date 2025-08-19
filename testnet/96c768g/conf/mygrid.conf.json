@@ -44,7 +44,7 @@
           "mygrid_client_grid_thread_num": 1,
           "page_release_batch_size_when_destruct_merke_mem_index": 100,
           "mygrid_master_to_server_auto_prune_period_us": 43200000000,
-          "mygrid_client_open_history_kv_cache": true,
+          "mygrid_client_open_history_kv_cache": false,
           "mygrid_history_cache_partition_capacity": 33554432,
           "mygrid_history_kv_cache_version_gap": 1000,
           "mygrid_client_history_kv_full_cache": false
