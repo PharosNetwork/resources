@@ -12,7 +12,7 @@ if [ ! -d /data/pharos-node ]; then
     sed -i 's|\"../conf/genesis.pharos-node.conf\"|\"/data/genesis.conf\"|g' /app/scripts/domain.json
     cp domain.json /data/
     cp deploy.light.json /data/
-    cp genesis.conf /data/genesis.conf
+    cp ../genesis.conf /data/genesis.conf
 
     /root/.local/bin/pipenv run pharos --no-debug deploy /app/scripts/domain.json
     /root/.local/bin/pipenv run pharos --no-debug bootstrap /app/scripts/domain.json
