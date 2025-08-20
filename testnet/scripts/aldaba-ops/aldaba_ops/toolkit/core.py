@@ -2077,7 +2077,7 @@ class Composer(object):
 
                     # genesis
                     cli_bin_dir = join(self.remote_client_dir, 'bin')
-                    cmd = f'cd {cli_bin_dir}; LD_PRELOAD=./{const.EVMONE_SO} ./aldaba_cli genesis -g ../conf/genesis.conf -s {const.MYGRID_GENESIS_CONFIG_FILENAME}'
+                    cmd = f'cd {cli_bin_dir}; LD_PRELOAD=./{const.EVMONE_SO} ./aldaba_cli genesis -g ../conf/genesis.conf --spec 0 -s {const.MYGRID_GENESIS_CONFIG_FILENAME}'
                     logs.info(f'{conn.host}: {cmd}')
                     conn.run(cmd)
             except Exception as e:
@@ -2095,7 +2095,7 @@ class Composer(object):
 
                     # genesis
                     cli_bin_dir = join(self.remote_client_dir, 'bin')
-                    cmd = f'cd {cli_bin_dir}; LD_PRELOAD=./{const.EVMONE_SO} ./aldaba_cli genesis -g ../conf/genesis.conf -s {const.MYGRID_GENESIS_CONFIG_FILENAME}'
+                    cmd = f'cd {cli_bin_dir}; LD_PRELOAD=./{const.EVMONE_SO} ./aldaba_cli genesis -g ../conf/genesis.conf --spec 0 -s {const.MYGRID_GENESIS_CONFIG_FILENAME}'
                     logs.info(f'{conn.host}: {cmd}')
                     conn.run(cmd)
             except Exception as e:
