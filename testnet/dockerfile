@@ -42,7 +42,7 @@ WORKDIR /app
 COPY bin /app/bin
 COPY conf /app/conf
 COPY scripts /app/scripts
-COPY start.sh /app/scripts/start.sh
+COPY ./scripts/start.sh /app/scripts/start.sh
 COPY genesis.conf /app/scripts/genesis.conf
 COPY meta_tool_config.py /app/scripts/meta_tool_config.py
 
