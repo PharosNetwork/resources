@@ -1,3 +1,0 @@
-[console_scripts]
-aldaba-ops = aldaba_ops.cli:cli
-
