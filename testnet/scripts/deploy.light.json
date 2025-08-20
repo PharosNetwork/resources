@@ -154,7 +154,7 @@
     "env": {}
   },
   "domains": {
-    "domain0": {
+    "domain": {
       "deploy_dir": "",
       "domain_role": 0,
       "key_passwd": "",
