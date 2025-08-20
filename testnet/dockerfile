@@ -43,7 +43,7 @@ COPY bin /app/bin
 COPY conf /app/conf
 COPY scripts /app/scripts
 COPY ./scripts/start.sh /app/scripts/start.sh
-COPY genesis.conf /app/scripts/genesis.conf
+COPY genesis.conf /app/genesis.conf
 COPY meta_tool_config.py /app/scripts/meta_tool_config.py
 
 RUN chmod +x /app/scripts/ops_prepare.sh && \
