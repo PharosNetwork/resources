@@ -38,6 +38,20 @@ def cd_execs(d: str, *cmds: List[str]) -> str:
 def ln_sf(s: str, t: str):
     return 'ln -sf {} {}'.format(s, t)
 
+def ln_sf_check(s: str, t:str):
+    src_real = os.path.realpath(s)
+
+    if os.path.isdir(t):
+        t = os.path.join(t, os.path.basename(s))
+
+    if os.path.lexists(t):
+        if os.path.islink(t):
+            dst_real = os.path.realpath(t)
+            if dst_real == src_real:
+                return ''
+        return ''
+
+    return 'ln -sf {} {}'.format(s, t)
 
 def rm_f(f: str):
     return 'rm -f {}'.format(f)
