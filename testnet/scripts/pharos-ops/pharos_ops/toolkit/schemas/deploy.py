@@ -83,6 +83,7 @@ class Deploy(object):
     client_key_type: str = field(default='', metadata={'required': True})
     use_generated_keys : bool = field(default=False, metadata={'required': False})
     use_latest_version: bool = field(default=False, metadata={'required': False})
+    enable_dora : bool = field(default=False, metadata={'required': False})
     docker: Docker = field(default_factory=Docker, metadata={'required': True})
     common: Common = field(default_factory=Common, metadata={'required': False})
     pharos: Extra = field(default_factory=Extra, metadata={'required': False})  # FIXME: 后续删掉, 使用common
