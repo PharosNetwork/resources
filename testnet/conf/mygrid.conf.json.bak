@@ -1,0 +1,49 @@
+{
+  "log": {
+    "pamir": {
+      "filename": "../log/pamir.log",
+      "max_file_size": 104857600,
+      "max_files": 100,
+      "level": "info"
+    }
+  },
+  "config": {
+    "metrics": {
+      "enable_pamir_cetina": false,
+      "pamir_cetina_push_address": "mymon-test.cloud.xxx.com",
+      "pamir_cetina_push_port": 80,
+      "pamir_cetina_push_interval": 1,
+      "pamir_cetina_job_name": "mygrid3_job",
+      "pamir_cetina_instance_name": "mygrid3_instance"
+    },
+    "mygrid": {
+      "user_flags": {
+        "letus_merkle_enable_memory_page_lru_cache": true,
+        "letus_merkle_index_memory_page_lru_cache_max_size_each_db": 2147483648,
+        "letus_merkle_state_tree_write_cache": true,
+        "letus_merkle_state_tree_read_cache": true,
+        "letus_data_dredger_scheduler_stop": false,
+        "letus_enable_merge_delta": true,
+        "mygrid_enable_online_admin": true
+      },
+      "expert_flags": {
+        "letus_active_mem_index_table_max_memory_size": 67108864,
+        "letus_persist_index_block_lru_cache_max_size": 8388608,
+        "pamir_enable_rocksdb_metrics": true,
+        "mygrid_client_enable_callback_thread_pool": true,
+        "mygrid_client_network_thread_num": 64,
+        "storage_kernel_bg_thread_count": 64,
+        "letus_l0_index_files_size_threshold": 67108864,
+        "storage_kernel_rocks_write_buffer_size": 67108864,
+        "storage_kernel_rocks_max_write_buffer_number": 2,
+        "page_release_batch_size_when_destruct_merke_mem_index": 100,
+        "letus_merkle_max_mem_index_base_page_memory_size": 8388608,
+        "storage_kernel_rocksdb_global_rate_limiter_rate_bytes_per_sec": 31457280,
+        "storage_kernel_rocksdb_global_rate_limiter_mode": 2,
+        "mygrid_client_open_flat_kv_cache": true,
+        "mygrid_flat_cache_partition_capacity": 67108864,
+        "mygrid_client_grid_thread_num": 1
+      }
+    }
+  }
+}
