@@ -79,6 +79,7 @@ class Domain(object):
     mygrid: MyGridConfig = field(default_factory=MyGridConfig, metadata={'required': True})
     secret: Secret = field(default_factory=Secret, metadata={'required': True})
     use_generated_keys : bool = field(default=False, metadata={'required': False})
+    enable_dora : bool = field(default=False, metadata={'required': False})
     key_passwd : str = field(default='123abc', metadata={'required': False})
     docker: Docker = field(default_factory=Docker, metadata={'required': True})
     common: Common = field(default_factory=Common, metadata={'required': False})

@@ -314,7 +314,11 @@ class Composer(object):
             self._mygrid_client_conf[const.MYGRID_CONFIG_NAME]['mygrid_client_deploy_mode'] = f'{const.ULTRA_DEPLOY_MODE}'
 
         if self._is_light:
-            self.meta_svc_dir = f'{self.meta_svc_dir}/light/data'
+            if self._domain.cluster[const.SERVICE_LIGHT].dir:
+                relative_path = os.path.relpath(self._domain.cluster[const.SERVICE_LIGHT].dir, self.deploy_top_dir)
+                self.meta_svc_dir = f'{relative_path}/data'
+            else:
+                self.meta_svc_dir = f'{self.meta_svc_dir}/light/data'
         else:
             self.meta_svc_dir = f'{self.meta_svc_dir}/data'
 
@@ -678,24 +682,27 @@ class Composer(object):
                 # link binary
                 source = join(self.deploy_dir, 'bin', self._instance_bin(instance))
                 target = join(instance.dir, 'bin')
-                cmd = f'ln -sf {source} {target}'
-                logs.info(cmd)
-                conn.run(cmd)
+                cmd = command.ln_sf_check(source, target)
+                if cmd != '':
+                    logs.info(cmd)
+                    conn.run(cmd)
 
                 # link EVMONE SO
                 if self.chain_protocol == const.PROTOCOL_EVM or self.chain_protocol == const.PROTOCOL_ALL:
                     source = join(self.deploy_dir, 'bin', const.EVMONE_SO)
                     target = join(instance.dir, 'bin')
-                    cmd = f'ln -sf {source} {target}'
-                    logs.info(cmd)
-                    conn.run(cmd)
+                    cmd = command.ln_sf_check(source, target)
+                    if cmd != '':
+                        logs.info(cmd)
+                        conn.run(cmd)
 
                 # link VERSION
                 source = join(self.deploy_dir, 'bin', const.PHAROS_VERSION)
                 target = join(instance.dir, 'bin')
-                cmd = f'ln -sf {source} {target}'
-                logs.info(cmd)
-                conn.run(cmd)
+                cmd = command.ln_sf_check(source, target)
+                if cmd != '':
+                    logs.info(cmd)
+                    conn.run(cmd)
 
     def deploy_host_conf(self, conn: Connection, service=None):
         instances = self._instances(service).get(conn.host, [])
