@@ -37,9 +37,16 @@ def cli(debug):
 
 @cli.command(help='Generate domain files')
 @click.argument('deploy_file', default='deploy.json', type=click.Path(exists=True))
-def generate(deploy_file):
+@click.option("--genesis", "-g", is_flag=True, help="need generate genesis")
+def generate(deploy_file,genesis):
     click.echo(click.format_filename(deploy_file))
-    entrance.generate(deploy_file)
+    entrance.generate(deploy_file, genesis)
+
+@cli.command(help="Generate genesis files")
+@click.argument("deploy_file", default="deploy.json", type=click.Path(exists=True))
+def generate_genesis(deploy_file):
+    click.echo(click.format_filename(deploy_file))
+    entrance.generate_genesis(deploy_file)
 
 
 #  @cli.command(context_settings={"ignore_unknown_options": True}, help='Deploy with $domain_label.json')

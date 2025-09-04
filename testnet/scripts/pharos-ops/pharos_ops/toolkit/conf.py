@@ -28,6 +28,7 @@ from pharos_ops.toolkit import const, logs, utils, pharos
 from pharos_ops.toolkit.conn_group import local
 
 from pharos_ops.toolkit.utils import to_serializable
+from .schemas import DomainSchema
 
 def read_keyfile_to_hex(type: str, prikey_path: str, key_passwd: str):
     ret = local.run(f"openssl {type} -in {prikey_path} -noout -text -passin pass:{key_passwd}")
@@ -646,7 +647,7 @@ class Generator(object):
         domain.initial_stake_in_gwei = dinfo.initial_stake_in_gwei
         return domain
 
-    def run(self):
+    def run(self, need_genesis: bool = False):
         all_domain: Dict[str, Domain] = {}
         # generate every domain data
         for domain_label, info in self._deploy.domains.items():
@@ -752,20 +753,22 @@ class Generator(object):
         root_sys_slot['nonce'] = '0x0'
         genesis_data['alloc'][root_sys_addr] = root_sys_slot
 
+        if need_genesis:
+            with open(self._abspath(self._genesis_file), 'w') as fh:
+                json.dump(genesis_data, fh, indent=2)
+            # 使用 admin_addr proxy_admin_addr 替换genesis.{self._deploy.chain_id}.conf中的默认值
+            conf_admin_addr = self._deploy.admin_addr[2:] if self._deploy.admin_addr.startswith("0x") else self._deploy.admin_addr
+            conf_proxy_admin_addr = self._deploy.proxy_admin_addr[2:] if self._deploy.proxy_admin_addr.startswith("0x") else self._deploy.proxy_admin_addr
+            default_admin_addr = "2cc298bdee7cfeac9b49f9659e2f3d637e149696"
+            default_proxy_admin_addr = "0278872d3f68b15156e486da1551bcd34493220d"
+            # 替换分隔符为 |
+            local.run(
+                f'sed -i "s|{default_admin_addr}|{conf_admin_addr}|" {self._abspath(self._genesis_file)}'
+            )
+            local.run(
+                f'sed -i "s|{default_proxy_admin_addr}|{conf_proxy_admin_addr}|" {self._abspath(self._genesis_file)}'
+            )
 
-        with open(self._abspath(self._genesis_file), 'w') as fh:
-            json.dump(genesis_data, fh, indent=2)
-
-        # 使用 admin_addr proxy_admin_addr 替换genesis.{self._deploy.chain_id}.conf中的默认值
-        conf_admin_addr = self._deploy.admin_addr[2:] if self._deploy.admin_addr.startswith("0x") else self._deploy.admin_addr
-        conf_proxy_admin_addr = self._deploy.proxy_admin_addr[2:] if self._deploy.proxy_admin_addr.startswith("0x") else self._deploy.proxy_admin_addr
-        
-        default_admin_addr = '2cc298bdee7cfeac9b49f9659e2f3d637e149696'
-        default_proxy_admin_addr = '0278872d3f68b15156e486da1551bcd34493220d'
-        # 替换分隔符为 | 
-        local.run(f'sed -i "s|{default_admin_addr}|{conf_admin_addr}|" {self._abspath(self._genesis_file)}')
-        local.run(f'sed -i "s|{default_proxy_admin_addr}|{conf_proxy_admin_addr}|" {self._abspath(self._genesis_file)}')
-        
         for domain_label, domain in all_domain.items():
             domain_data = DomainSchema().dump(domain)
             # 删除一些默认可得的信息，简化输出的domain file
@@ -801,3 +804,128 @@ class Generator(object):
             logs.info(f'dump VERSION file at: {pharos_version_file}')
             with open(pharos_version_file, "w") as file:
                 json.dump(result, file, indent=2)
+
+    def generate_genesis(self):
+        all_domain: Dict[str, Domain] = {}
+        # only use first domain
+        domain_label = list(self._deploy.domains.keys())[0]
+        domain_file = self._abspath(f'{domain_label}.json')
+        with open(domain_file, 'r') as file:
+            domain_data = json.load(file)
+            domain = DomainSchema().load(domain_data)
+            all_domain[domain_label] = domain
+
+        # 遍历所有domain，构建genesis.conf，输出domain file
+        genesis_domains = {}
+        domain_index = 0
+        storage_slot_kvs = {}
+        #stake = 1000000000000000000 # 1 ETH
+        GWEI_TO_WEI = 1000000000
+        total_stake_in_wei = 0
+        for domain_label, domain in all_domain.items():
+            key_file = self._abspath(domain.secret.domain.files['key'])
+            stabilizing_pk_file = self._abspath(domain.secret.domain.files['stabilizing_pk'])
+
+            with open(stabilizing_pk_file, 'r') as spk_file:
+                spk = spk_file.read().strip()
+            
+            try:
+                with open(domain.secret.domain.files.get('key_pub', "r")) as pk_file:
+                    pubkey = pk_file.readline().strip()
+                    pubkey_bytes = bytes.fromhex(f'{pubkey}')
+            except Exception as e:
+                # print(e)
+                pubkey, pubkey_bytes = Generator._get_pubkey(self._deploy.domain_key_type, key_file, domain.key_passwd)  
+            
+            node_id = hashlib.sha256(bytes(pubkey_bytes)).hexdigest()
+            domain_host = self._deploy.domains[domain_label].cluster[0].host
+            domain_port = self._deploy.domains[domain_label].domain_port
+            endpoint = f"tcp://{domain_host}:{domain_port}"
+            genesis_domains[domain_label] = {
+                "pubkey": f"0x{pubkey}",
+                "stabilizing_pubkey": spk,
+                "owner": "root",
+                "endpoints": [endpoint],
+                "staking": "200000000",
+                "commission_rate": "10",
+                "node_id": node_id,
+            }
+            # put proposer_id into env
+            for instance in domain.cluster.values():
+                instance.env["NODE_ID"] = node_id
+            domain_stake_in_wei = domain.initial_stake_in_gwei * GWEI_TO_WEI
+            domain_storage_slot = self._generate_domain_slots(len(all_domain),domain_index, pubkey, spk, endpoint, domain_stake_in_wei)
+            total_stake_in_wei += domain_stake_in_wei
+            domain_index += 1
+            storage_slot_kvs.update(domain_storage_slot)
+        # slot 5 epoch num
+        epoch_base_slot = 5
+        epoch_base_slot_bytes = to_bytes(epoch_base_slot).rjust(32, b'\0')
+        epoch_num = 0
+        epoch_num_bytes = to_bytes(epoch_num).rjust(32, b'\0')
+        storage_slot_kvs["0x" + epoch_base_slot_bytes.hex()] = "0x" + epoch_num_bytes.hex()
+
+        # slot 6 total stake
+        total_stake_base_slot = 6
+        total_stake_base_slot_bytes = to_bytes(total_stake_base_slot).rjust(32, b'\0')
+        total_stake_bytes = int_to_big_endian(total_stake_in_wei).rjust(32, b'\0')
+        storage_slot_kvs["0x" + total_stake_base_slot_bytes.hex()] = "0x" + total_stake_bytes.hex()
+
+        genesis_data = utils.load_json(self._deploy.genesis_tpl)
+        genesis_data['domains'] = genesis_domains
+        sys_staking_addr = '4100000000000000000000000000000000000000'
+        # 非proxy代理部署
+        if 'storage' not in genesis_data['alloc'][sys_staking_addr]:
+            staking_storage_slot_kvs=storage_slot_kvs
+        else: # proxy代理部署
+            staking_storage_slot_kvs=genesis_data['alloc'][sys_staking_addr]['storage']
+            staking_storage_slot_kvs.update(storage_slot_kvs)
+            
+        genesis_data['alloc'][sys_staking_addr]['storage'] = staking_storage_slot_kvs
+        genesis_data['alloc'][sys_staking_addr]['balance'] = hex(total_stake_in_wei)
+
+        # chain epoch duration
+        # timestamp = time.time_ns() // 1000000 # not supported until python 3.7
+        timestamp = int(round(time.time() * 1000))
+        genesis_data['configs']['chain.epoch_start_timestamp'] = f'{timestamp}'
+
+        # generate chaincfg storage slot
+        sys_chaincfg_addr = '3100000000000000000000000000000000000000'
+        storage_slot_kvs = self._generate_chaincfg_slots(genesis_data['configs'])
+        # 非proxy代理部署
+        if 'storage' not in genesis_data['alloc'][sys_chaincfg_addr]:
+            chaincfg_storage_slot_kvs = storage_slot_kvs
+        else: # proxy代理部署
+            chaincfg_storage_slot_kvs=genesis_data['alloc'][sys_chaincfg_addr]['storage']
+            chaincfg_storage_slot_kvs.update(storage_slot_kvs)
+            
+        genesis_data['alloc'][sys_chaincfg_addr]['storage'] = chaincfg_storage_slot_kvs
+
+        # generate rule mng storage slot
+        sys_rule_mng_addr = '2100000000000000000000000000000000000000'
+        storage_slot_kvs = self._generate_rule_mng_slots(genesis_data['alloc'][sys_rule_mng_addr]['storage'])
+        genesis_data['alloc'][sys_rule_mng_addr]['storage'] = storage_slot_kvs
+
+        # write admin addr
+        root_sys_addr = self._deploy.admin_addr
+        if root_sys_addr.startswith('0x'):
+            root_sys_addr = root_sys_addr[2:]  # Remove the '0x' prefix
+        root_sys_slot = {}
+        root_sys_slot['balance'] = '0xc097ce7bc90715b34b9f1000000000'
+        root_sys_slot['nonce'] = '0x0'
+        genesis_data['alloc'][root_sys_addr] = root_sys_slot
+
+        with open(self._abspath(self._genesis_file), 'w') as fh:
+            json.dump(genesis_data, fh, indent=2)
+        # 使用 admin_addr proxy_admin_addr 替换genesis.{self._deploy.chain_id}.conf中的默认值
+        conf_admin_addr = self._deploy.admin_addr[2:] if self._deploy.admin_addr.startswith("0x") else self._deploy.admin_addr
+        conf_proxy_admin_addr = self._deploy.proxy_admin_addr[2:] if self._deploy.proxy_admin_addr.startswith("0x") else self._deploy.proxy_admin_addr
+        default_admin_addr = "2cc298bdee7cfeac9b49f9659e2f3d637e149696"
+        default_proxy_admin_addr = "0278872d3f68b15156e486da1551bcd34493220d"
+        # 替换分隔符为 |
+        local.run(
+            f'sed -i "s|{default_admin_addr}|{conf_admin_addr}|" {self._abspath(self._genesis_file)}'
+        )
+        local.run(
+            f'sed -i "s|{default_proxy_admin_addr}|{conf_proxy_admin_addr}|" {self._abspath(self._genesis_file)}'
+        )
