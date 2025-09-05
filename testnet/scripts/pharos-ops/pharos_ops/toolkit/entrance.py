@@ -30,14 +30,21 @@ def catch_exception(fn):
 
 
 @catch_exception
-def generate(deploy_file: str):
+def generate(deploy_file: str, need_genesis: bool = False):
     """
     Command: pharos-ops configure
     """
 
     generator = conf.Generator(deploy_file)
-    generator.run()
+    generator.run(need_genesis)
 
+@catch_exception
+def generate_genesis(deploy_file: str):
+    """
+    Command: pharos-ops generate-genesis
+    """
+    generator = conf.Generator(deploy_file)
+    generator.generate_genesis()
 
 @catch_exception
 def deploy(domain_files: str, service: str):
