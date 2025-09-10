@@ -742,7 +742,7 @@ class Composer(object):
                     self._dump_json(cubenet_conf_file, cubenet_conf_data, conn=conn)
 
                     cubenet_certs_dir = join(instance.dir, 'certs/')
-                    conn.sync(self._build_file(f'scripts/resources/domain_keys/prime256v1/{self._domain.domain_label}/new.key'), cubenet_certs_dir)
+                    conn.sync(self.domain_secret.files['key'], cubenet_certs_dir)
 
             # generate mygrid config json and mygrid env json
             mygrid_config_json_file = join(instance.dir, f'conf/{const.MYGRID_CONF_JSON_FILENAME}')
