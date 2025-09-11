@@ -738,11 +738,15 @@ class Composer(object):
                     port_str = self.cluster[instance.name].env["DOMAIN_LISTEN_URLS0"].split(':')[-1]
                     port_offset = int(dog_json_file['config']['cubenet']['port_offset'])
                     cubenet_conf_data['cubenet']['p2p']['host'][0]['port'] =  str(int(port_str)+ port_offset)
-                    cubenet_conf_file = join(instance.dir, 'conf/cubenet.conf')
-                    self._dump_json(cubenet_conf_file, cubenet_conf_data, conn=conn)
 
                     cubenet_certs_dir = join(instance.dir, 'certs/')
-                    conn.sync(self.domain_secret.files['key'], cubenet_certs_dir)
+                    domain_key_filename = os.path.basename(self.domain_secret.files['key'])
+                    domain_key_full_abs_path = os.path.abspath(join(cubenet_certs_dir, domain_key_filename))
+                    conn.sync(self.domain_secret.files['key'], domain_key_full_abs_path)
+                    cubenet_conf_data['cubenet']['p2p']['private_key_file'] = domain_key_full_abs_path
+
+                    cubenet_conf_file = join(instance.dir, 'conf/cubenet.conf')
+                    self._dump_json(cubenet_conf_file, cubenet_conf_data, conn=conn)
 
             # generate mygrid config json and mygrid env json
             mygrid_config_json_file = join(instance.dir, f'conf/{const.MYGRID_CONF_JSON_FILENAME}')
