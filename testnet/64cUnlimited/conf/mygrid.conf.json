@@ -24,8 +24,7 @@
         "letus_merkle_state_tree_read_cache": false,
         "letus_data_dredger_scheduler_stop": true,
         "letus_enable_merge_delta": true,
-        "mygrid_enable_online_admin": true,
-        "letus_max_value_size_in_bytes": 41943040
+        "mygrid_enable_online_admin": true
       },
       "expert_flags": {
         "letus_active_mem_index_table_max_memory_size": 67108864,

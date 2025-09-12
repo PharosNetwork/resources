@@ -25,8 +25,7 @@
         "letus_merkle_state_tree_read_cache": false,
         "letus_data_dredger_scheduler_stop": true,
         "letus_enable_merge_delta": false,
-        "mygrid_enable_online_admin": true,
-        "letus_max_value_size_in_bytes": 41943040
+        "mygrid_enable_online_admin": true
       },
       "expert_flags": {
         "//[内存占用]LETUS MemTable Buffer大小 * 32 StateDB Partition + 1 BlockDB": "32MB * 33 = 1 GB",
@@ -42,6 +41,7 @@
         "//[内存占用]KVDB(RocksDB) MemTable Buffer大小": "32MB(33554432 B)*KVDB数量(5+32个PersistTXDB)=1.16GB",
         "storage_kernel_rocks_write_buffer_size": 33554432,
         "storage_kernel_rocks_max_write_buffer_number": 2,
+        "storage_kernel_rocks_block_cache_size": 268435456,
         "storage_kernel_rocksdb_global_rate_limiter_rate_bytes_per_sec": 31457280,
         "storage_kernel_rocksdb_global_rate_limiter_mode": 2,
         "//[内存占用] 每个partition的Flat Cache容量": "0.25GB * 32 = 8GB",
@@ -57,7 +57,7 @@
         "//[低内存配置] 要求StateDB用PL2磁盘": "",
         "TEST_letus_force_release_physical_pages_in_place": true,
         "letus_merkle_enable_trie_logical_page_release": true,
-        "letus_prune_compaction_max_concurrent_count": 0,
+        "letus_prune_compaction_max_concurrent_count": 4,
         "letus_io_throttle_rw_bps": 314572800,
         "letus_merkle_split_high_watermark": 128,
         "letus_merkle_merge_low_watermark": 64,
