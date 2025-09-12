@@ -25,7 +25,8 @@
         "letus_merkle_state_tree_read_cache": false,
         "letus_data_dredger_scheduler_stop": true,
         "letus_enable_merge_delta": false,
-        "mygrid_enable_online_admin": true
+        "mygrid_enable_online_admin": true,
+        "letus_max_value_size_in_bytes": 41943040
       },
       "expert_flags": {
         "//[内存占用]LETUS MemTable Buffer大小 * 32 StateDB Partition + 1 BlockDB": "32MB * 33 = 1 GB",
