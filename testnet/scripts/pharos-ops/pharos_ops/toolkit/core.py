@@ -504,18 +504,7 @@ class Composer(object):
         return result
 
     def _abspath(self, file) -> str:
-        if isabs(file):
-            return file
-        
-        # Prevent path traversal attacks
-        import os.path
-        safe_path = os.path.normpath(join(self._domain_file_path, file))
-        
-        # Ensure the resolved path is within the domain file directory
-        if not safe_path.startswith(os.path.abspath(self._domain_file_path)):
-            raise ValueError(f"Path traversal detected: {file}")
-        
-        return safe_path
+        return file if isabs(file) else join(self._domain_file_path, file)
 
     def _build_file(self, *args) -> str:
         return join(self._domain.build_root, *args)
