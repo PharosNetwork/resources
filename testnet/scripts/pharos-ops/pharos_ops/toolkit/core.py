@@ -504,7 +504,18 @@ class Composer(object):
         return result
 
     def _abspath(self, file) -> str:
-        return file if isabs(file) else join(self._domain_file_path, file)
+        if isabs(file):
+            return file
+        
+        # Prevent path traversal attacks
+        import os.path
+        safe_path = os.path.normpath(join(self._domain_file_path, file))
+        
+        # Ensure the resolved path is within the domain file directory
+        if not safe_path.startswith(os.path.abspath(self._domain_file_path)):
+            raise ValueError(f"Path traversal detected: {file}")
+        
+        return safe_path
 
     def _build_file(self, *args) -> str:
         return join(self._domain.build_root, *args)
@@ -581,26 +592,7 @@ class Composer(object):
     def clean_sqlite(self, instance: Instance, dsn: str, conn: Connection):
         clean_file(conn, join(f'{instance.dir}/bin', dsn))
 
-    def clean_postgresql(self, instance: Instance, dsn: str, conn: Connection):
-        dsn_dict = dict(item.split("=") for item in dsn.split() if "=" in item)
 
-        host = dsn_dict.get("host")
-        user = dsn_dict.get("user")
-        password = dsn_dict.get("password")
-        dbname = dsn_dict.get("dbname")
-        port = dsn_dict.get("port")
-        sslmode = dsn_dict.get("sslmode")
-        timezone = dsn_dict.get("TimeZone")
-
-        conn.run(f"""
-                 export PGHOST={host} &&
-                 export PGUSER={user} &&
-                 export PGPASSWORD={password} &&
-                 export PGDATABASE={dbname} &&
-                 export PGPORT={port} &&
-                 psql -c 'DROP DATABASE {dbname};' &&
-                 psql -c 'CREATE DATABASE {dbname};'
-                 """)
 
 
     def clean_host(self, conn: Connection, service):
