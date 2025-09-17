@@ -42,7 +42,7 @@
         "letus_l0_index_files_size_threshold": 33554432,
         "//[内存占用]KVDB(RocksDB) MemTable Buffer大小": "32MB(33554432 B)*KVDB数量(5+32个PersistTXDB)=1.16GB",
         "storage_kernel_rocks_write_buffer_size": 33554432,
-        "storage_kernel_rocks_max_write_buffer_number": 2,
+        "storage_kernel_rocks_max_write_buffer_number": 8,
         "storage_kernel_rocksdb_global_rate_limiter_rate_bytes_per_sec": 31457280,
         "storage_kernel_rocksdb_global_rate_limiter_mode": 2,
         "//[内存占用] 每个partition的Flat Cache容量": "0.25GB * 32 = 8GB",
