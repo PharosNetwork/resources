@@ -28,8 +28,6 @@
         "mygrid_enable_online_admin": true
       },
       "expert_flags": {
-        "letus_max_value_size_in_bytes": 31457280,
-        "storage_kernel_slow_thread_count": 16,
         "//[内存占用]LETUS MemTable Buffer大小 * 32 StateDB Partition + 1 BlockDB": "32MB * 33 = 1 GB",
         "letus_active_mem_index_table_max_memory_size": 33554432,
         "//[内存占用]LETUS 索引Block LRU Cache大小 * 32 StateDB Partition + 1 BlockDB": "32MB(8388608B) * 33 = 1GB",
@@ -58,7 +56,7 @@
         "//[低内存配置] 要求StateDB用PL2磁盘": "",
         "TEST_letus_force_release_physical_pages_in_place": true,
         "letus_merkle_enable_trie_logical_page_release": true,
-        "letus_prune_compaction_max_concurrent_count": 16,
+        "letus_prune_compaction_max_concurrent_count": 4,
         "letus_io_throttle_rw_bps": 314572800,
         "letus_merkle_split_high_watermark": 128,
         "letus_merkle_merge_low_watermark": 64,
