@@ -27,6 +27,7 @@
         "mygrid_enable_online_admin": true
       },
       "expert_flags": {
+        "letus_max_value_size_in_bytes": 31457280,
         "letus_active_mem_index_table_max_memory_size": 67108864,
         "letus_persist_index_block_lru_cache_max_size": 8388608,
         "pamir_enable_rocksdb_metrics": true,
@@ -40,6 +41,7 @@
         "storage_kernel_rocksdb_global_rate_limiter_mode": 2,
         "mygrid_client_open_flat_kv_cache": true,
         "mygrid_flat_cache_partition_capacity": 134217728,
+        "//将Grid线程池与Partition线程池分开": "",
         "mygrid_client_grid_thread_num": 1,
         "page_release_batch_size_when_destruct_merke_mem_index": 100,
         "mygrid_master_to_server_auto_prune_period_us": 43200000000,
