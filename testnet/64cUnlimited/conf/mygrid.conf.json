@@ -46,6 +46,7 @@
         "mygrid_client_open_history_kv_cache": true,
         "mygrid_history_cache_partition_capacity": 107374182400,
         "mygrid_history_kv_cache_version_gap": 300000000,
+        "letus_prune_compaction_max_concurrent_count": 0,
         "mygrid_client_history_kv_full_cache": true
       }
     }
