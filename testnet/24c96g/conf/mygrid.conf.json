@@ -27,7 +27,6 @@
         "mygrid_enable_online_admin": true
       },
       "expert_flags": {
-        "storage_kernel_slow_thread_count": 8,
         "letus_active_mem_index_table_max_memory_size": 33554432,
         "letus_persist_index_block_lru_cache_max_size": 33554432,
         "pamir_enable_rocksdb_metrics": true,
@@ -39,6 +38,7 @@
         "storage_kernel_rocks_max_write_buffer_number": 8,
         "storage_kernel_rocksdb_global_rate_limiter_rate_bytes_per_sec": 31457280,
         "storage_kernel_rocksdb_global_rate_limiter_mode": 2,
+        "letus_env_local_file_bg_thread_count": 32,
         "mygrid_client_open_flat_kv_cache": true,
         "mygrid_flat_cache_partition_capacity": 268435456,
         "mygrid_client_grid_thread_num": 1,
