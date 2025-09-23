@@ -17,6 +17,12 @@ from typing import List
 
 from pharos_ops.toolkit import conf, core, logs
 import traceback
+import subprocess
+import os
+from pharos_ops.toolkit.conn_group import local
+import shutil
+from .schemas import DeploySchema
+import json
 
 def catch_exception(fn):
     @wraps(fn)
@@ -277,3 +283,79 @@ def stop(domain_files: str, service: str):
     for domain_file in domain_files:
         composer = core.Composer(domain_file)
         composer.stop(service)
+
+
+@catch_exception
+def upgrade():
+    """
+    Command: pharos-ops upgrade
+    """
+    fh = open("./deploy.light.json", "r")
+    deploy_data = json.load(fh)
+    deploy = DeploySchema().load(deploy_data)
+
+    deploy_path = f"{deploy.deploy_root}/"
+    original_cwd = os.getcwd()
+    logs.info(f"original_cwd: {original_cwd}")
+    logs.info(f"deploy_path: {deploy_path}")
+    files_to_remove = [
+        f"{deploy_path}/domain/light/bin/libdora_c.so",
+        f"{deploy_path}/domain/light/bin/libevmone.so",
+        f"{deploy_path}/domain/light/bin/pharos_light",
+        f"{deploy_path}/domain/light/bin/VERSION",
+        f"{deploy_path}/domain/client/bin/pharos_cli",
+    ]
+    for file_path in files_to_remove:
+        if os.path.exists(file_path):
+            os.remove(file_path)
+
+    symlinks = [
+        (
+            f"{original_cwd}/../bin/libdora_c.so",
+            f"{deploy_path}/domain/light/bin/libdora_c.so",
+        ),
+        (
+            f"{original_cwd}/../bin/libevmone.so",
+            f"{deploy_path}/domain/light/bin/libevmone.so",
+        ),
+        (
+            f"{original_cwd}/../bin/pharos_light",
+            f"{deploy_path}/domain/light/bin/pharos_light",
+        ),
+        (
+            f"{original_cwd}/../bin/VERSION",
+            f"{deploy_path}/domain/light/bin/VERSION",
+        ),
+    ]
+    for src, dst in symlinks:
+        if os.path.lexists(dst):
+            os.remove(dst)
+        os.symlink(src, dst)
+
+    try:
+        shutil.copyfile(
+            f"{deploy_path}/domain/light/conf/monitor.conf",
+            f"{original_cwd}/../conf/monitor.conf",
+        )
+
+        local.run(
+            "~/.local/bin/pipenv run pharos update-conf domain.json",
+        )
+
+        shutil.copyfile(
+            f"{original_cwd}/../bin/pharos_cli",
+            f"{deploy_path}/domain/client/bin/pharos_cli",
+        )
+
+        os.chdir("/data/pharos-node/domain/light/bin/")
+        current_env = os.environ.copy()
+        current_env["LD_PRELOAD"] = "./libevmone.so:./libdora_c.so"
+        logs.info("x")
+        subprocess.run(
+            ["./pharos_light", "-c", "../conf/launch.conf"],
+            env=current_env,
+        )
+    except Exception as e:
+        logs.error(f"Upgrade failed: {e}")
+    finally:
+        os.chdir(original_cwd)
