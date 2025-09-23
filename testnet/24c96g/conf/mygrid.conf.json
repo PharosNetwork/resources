@@ -49,7 +49,7 @@
         "mygrid_client_history_kv_full_cache": false,
         "TEST_letus_force_release_physical_pages_in_place": true,
         "letus_merkle_enable_trie_logical_page_release": true,
-        "letus_prune_compaction_max_concurrent_count": 0,
+        "letus_prune_compaction_max_concurrent_count": 4,
         "letus_io_throttle_rw_bps": 314572800,
         "letus_merkle_split_high_watermark": 128,
         "letus_merkle_merge_low_watermark": 64,
