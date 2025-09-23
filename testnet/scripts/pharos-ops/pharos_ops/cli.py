@@ -363,3 +363,7 @@ def set_ip(ip: str, deploy_file: str):
 def update_validator(endpoint, key, poolid, domains,new_owner):
     entrance.update_validator(endpoint, key, domains, poolid, new_owner)
 
+
+@cli.command(help="Upgrade pharos")
+def upgrade():
+    entrance.upgrade()
