@@ -1,0 +1,18 @@
+{
+  "PHAROS-testnet-rpc-250919-4ee6f32d": {
+    "version": 7,
+    "epoch": 6996
+  },
+  "PHAROS-testnet-rpc-250813-ed0692c7": {
+    "version": 6,
+    "epoch": 5122
+  },
+  "PHAROS-testnet-rpc-250529-ab5ab644": {
+    "version": 4,
+    "epoch": 3345
+  },
+  "PHAROS-list-8606d2f8": {
+    "version": 3,
+    "epoch": 0
+  }
+}

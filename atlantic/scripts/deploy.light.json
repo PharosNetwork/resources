@@ -1,0 +1,177 @@
+{
+  "build_root": "../",
+  "chain_id": "pharos-node",
+  "chain_protocol": "evm",
+  "version": "2.0.0",
+  "run_user": "root",
+  "deploy_root": "/data/pharos-node",
+  "admin_addr": "0x014de0228fbC3373adD6C0d1C195a0e22495f4D5",
+  "proxy_admin_addr": "0278872d3f68b15156e486da1551bcd34493220d",
+  "genesis_tpl": "../conf/genesis.tpl.conf",
+  "mygrid": {
+    "conf": {
+      "enable_adaptive": true,
+      "filepath": "../conf/mygrid.conf.json"
+    },
+    "env": {
+      "enable_adaptive": true,
+      "filepath": "../conf/mygrid.light.env.json"
+    }
+  },
+  "domain_key_type": "prime256v1",
+  "client_key_type": "prime256v1",
+  "use_generated_keys": true,
+  "use_latest_version": false,
+  "docker": {
+    "enable": false,
+    "registry": "registry-vpc.cn-shanghai.aliyuncs.com/pharos"
+  },
+  "common": {
+    "env": {},
+    "log": {
+      "storage_write": {
+        "filename": "../log/storage_write.log",
+        "max_file_size": 209715200,
+        "max_files": 100,
+        "level": "info",
+        "flush": false
+      },
+      "storage_read": {
+        "filename": "../log/storage_read.log",
+        "max_file_size": 209715200,
+        "max_files": 100,
+        "level": "info",
+        "flush": false
+      },
+      "pamir": {
+        "filename": "../log/pamir.log",
+        "max_file_size": 209715200,
+        "max_files": 100,
+        "level": "info",
+        "flush": false
+      },
+      "vm": {
+        "filename": "../log/vm.log",
+        "max_file_size": 209715200,
+        "max_files": 100,
+        "level": "info",
+        "flush": false
+      },
+      "consensus": {
+        "filename": "../log/consensus.log",
+        "max_file_size": 209715200,
+        "max_files": 100,
+        "level": "info",
+        "flush": true
+      },
+      "pharos": {
+        "filename": "../log/pharos.log",
+        "max_file_size": 209715200,
+        "max_files": 200,
+        "level": "info",
+        "flush": false
+      },
+      "tracing": {
+        "filename": "../log/tracing.log",
+        "max_file_size": 209715200,
+        "max_files": 100,
+        "level": "error",
+        "flush": false
+      },
+      "audit": {
+        "filename": "../log/audit.log",
+        "max_file_size": 209715200,
+        "max_files": 100,
+        "level": "error",
+        "flush": false
+      },
+      "profile": {
+        "filename": "../log/profile.log",
+        "max_file_size": 209715200,
+        "max_files": 200,
+        "level": "info",
+        "flush": false
+      },
+      "alert": {
+        "filename": "../log/alert.log",
+        "max_file_size": 209715200,
+        "max_files": 100,
+        "level": "info",
+        "flush": false
+      },
+      "cubenet": {
+        "filename": "../log/cubenet.log",
+        "max_file_size": 209715200,
+        "max_files": 100,
+        "level": "info",
+        "flush": false
+      },
+      "traffic_in": {
+        "filename": "../log/traffic_in.log",
+        "max_file_size": 209715200,
+        "max_files": 100,
+        "level": "info",
+        "flush": false
+      },
+      "traffic_out": {
+        "filename": "../log/traffic_out.log",
+        "max_file_size": 209715200,
+        "max_files": 100,
+        "level": "info",
+        "flush": false
+      },
+      "access": {
+        "filename": "../log/access.log",
+        "max_file_size": 209715200,
+        "max_files": 100,
+        "level": "info",
+        "flush": false
+      }
+    },
+    "config": {
+      "metrics": {
+        "enable_pamir_cetina": false,
+        "pamir_cetina_push_address": "metrics.prometheus-prometheus-pushgateway.prometheus-agent-namespace.svc.cluster.local",
+        "pamir_cetina_job_name": "pharos_evm_16c"
+      }
+    },
+    "gflags": {
+      "enable_eip155": "true",
+      "max_pending_txs_depth": "64",
+      "enable_perf": "false",
+      "enable_rpc_rate_limit": "false"
+    }
+  },
+  "pharos": {
+    "args": [],
+    "env": {},
+    "log": {},
+    "config": {},
+    "gflags": {}
+  },
+  "storage": {
+    "args": [],
+    "env": {}
+  },
+  "domains": {
+    "domain": {
+      "deploy_dir": "",
+      "domain_role": 0,
+      "key_passwd": "",
+      "domain_port": 19000,
+      "client_tcp_port": 18000,
+      "client_ws_port": 18200,
+      "client_wss_port": 18300,
+      "client_http_port": 18100,
+      "cluster": [
+        {
+          "host": "18.141.199.38",
+          "start_port": 20000,
+          "deploy_ip": "127.0.0.1",
+          "instances": "light"
+        }
+      ],
+      "initial_stake_in_gwei": 1000000000
+    }
+  }
+}
