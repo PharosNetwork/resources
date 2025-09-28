@@ -228,7 +228,7 @@ class Generator(object):
         poolid = hashlib.sha256(bytes(pubkey_bytes)).digest()
 
         # 1. for `mapping(bytes32 => Validator) public validators`
-        validators_map_base_slot = 1
+        validators_map_base_slot = 0
         validators_map_base_slot_bytes = int_to_big_endian(validators_map_base_slot).rjust(32, b'\0')
         validators_map_validator_slot = keccak(poolid + validators_map_base_slot_bytes)
 
@@ -343,7 +343,7 @@ class Generator(object):
 
 
         # 13. add for `bytes32[] public activePoolIds;`
-        active_pool_ids_base_slot = 2
+        active_pool_ids_base_slot = 1
         ## 13.1 put array length
         active_pool_ids_base_slot_bytes = to_bytes(active_pool_ids_base_slot).rjust(32, b'\0')
         active_pool_ids_length = to_bytes(total_domains).rjust(32, b'\0')
@@ -353,26 +353,19 @@ class Generator(object):
         active_pool_id_final_validator_slot = self._bytes_add_num(active_pool_id_final_slot, domain_index)
         slots["0x" + active_pool_id_final_validator_slot.hex()] = "0x" + poolid.hex()
 
-        # # 14. epoch num
-        # epoch_base_slot = 5
-        # epoch_base_slot_bytes = to_bytes(epoch_base_slot).rjust(32, b'\0')
-        # epoch_num = 0
-        # epoch_num_bytes = to_bytes(epoch_num).rjust(32, b'\0')
-        # slots["0x" + epoch_base_slot_bytes.hex()] = "0x" + epoch_num_bytes.hex()
-
-        # # 14. total stake
-        # total_stake_base_slot = 6
-        # total_stake_base_slot_bytes = to_bytes(total_stake_base_slot).rjust(32, b'\0')
-        # total_stake = total_domains * stake
-        # total_stake_bytes = int_to_big_endian(total_stake).rjust(32, b'\0')
-        # slots["0x" + total_stake_base_slot_bytes.hex()] = "0x" + total_stake_bytes.hex()
+        # 15. config addr
+        cfg_base_slot = 7
+        cfg_base_slot_bytes = to_bytes(cfg_base_slot).rjust(32, b'\0')
+        cfg_addr = "3100000000000000000000000000000000000000"
+        cfg_addr_bytes = bytes.fromhex(cfg_addr).rjust(32, b'\0')
+        slots["0x" + cfg_base_slot_bytes.hex()] = "0x" + cfg_addr_bytes.hex()
 
         return slots
 
     def _generate_chaincfg_slots(self, configs: Dict[str, str]):
         slots = {}
 
-        config_cps_base_slot = 0
+        config_cps_base_slot = 1
         config_cps_base_slot_bytes = int_to_big_endian(config_cps_base_slot).rjust(32, b'\0')
 
         # 1. put `configCps` length in `config_cps_base_slot`
@@ -412,15 +405,12 @@ class Generator(object):
             slot_index += 1
 
         
-        # 5. put init rootSys
-        config_root_sys_base_slot = 1
+        # 5. put stakingAddress
+        config_root_sys_base_slot = 0
         config_root_sys_base_slot_bytes = int_to_big_endian(config_root_sys_base_slot).rjust(32, b'\0')
-        root_sys_addr = self._deploy.admin_addr
-        if root_sys_addr.startswith('0x'):
-            root_sys_addr = root_sys_addr[2:]  # Remove the '0x' prefix
-
-        root_sys_addr_slot_value = root_sys_addr.rjust(64, '0')
-        slots["0x" + config_root_sys_base_slot_bytes.hex()] = "0x" + root_sys_addr_slot_value
+        sys_staking_addr = '4100000000000000000000000000000000000000'
+        sys_staking_addr_bytes = bytes.fromhex(sys_staking_addr).rjust(32, b'\0')
+        slots["0x" + config_root_sys_base_slot_bytes.hex()] = "0x" + sys_staking_addr_bytes.hex()
 
         return slots
 
@@ -440,6 +430,142 @@ class Generator(object):
         configs["0x" + root_sys_base_slot_bytes.hex()] = admin_slot_value
 
         return configs
+
+    def _generate_access_control_admin(self, configs: Dict[str, str], account: Optional[str]):
+        """
+        struct RoleData {
+        mapping(address account => bool) hasRole;
+        bytes32 adminRole;
+        }
+
+        bytes32 public constant DEFAULT_ADMIN_ROLE = 0x00;
+
+
+        /// @custom:storage-location erc7201:openzeppelin.storage.AccessControl
+        struct AccessControlStorage {
+            mapping(bytes32 role => RoleData) _roles;
+        }
+
+        // keccak256(abi.encode(uint256(keccak256("openzeppelin.storage.AccessControl")) - 1)) & ~bytes32(uint256(0xff))
+        bytes32 private constant AccessControlStorageLocation = 0x02dd7bc7dec4dceedda775e58dd541e08a116c6c53815c0bd028192f7b626800;
+
+        function _getAccessControlStorage() private pure returns (AccessControlStorage storage $) {
+            assembly {
+                .slot := AccessControlStorageLocation
+            }
+        }
+
+        function _grantRole(bytes32 role, address account) internal virtual returns (bool) {
+            AccessControlStorage storage $ = _getAccessControlStorage();
+            if (!hasRole(role, account)) {
+                $._roles[role].hasRole[account] = true;
+                emit RoleGranted(role, account, _msgSender());
+                return true;
+            } else {
+                return false;
+            }
+        }
+        """
+
+        # either use admin_addr defined in `deploy.light.json`, or use the params
+        if account is None:
+            admin_addr = self._deploy.admin_addr
+        else:
+            admin_addr = account
+
+        if admin_addr.startswith('0x'):
+            admin_addr = admin_addr[2:]  # Remove the '0x' prefix
+
+
+        access_control_storage_base_slot = "02dd7bc7dec4dceedda775e58dd541e08a116c6c53815c0bd028192f7b626800"
+        access_control_storage_base_slot_bytes = bytes.fromhex(access_control_storage_base_slot).rjust(32, b'\0')
+        default_admin_role_index = 0
+        default_admin_role_index_bytes = int_to_big_endian(default_admin_role_index).rjust(32, b'\0')
+        # now we have `RoleData` slot, i.e. `hasRole` field
+        access_control_storage_default_admin_role_data_slot = keccak(default_admin_role_index_bytes + access_control_storage_base_slot_bytes)
+
+        # get the account slot in `RoleData.hasRole` 
+        admin_addr_bytes = bytes.fromhex(admin_addr).rjust(32, b'\0')
+        admin_addr_slot = keccak(admin_addr_bytes + access_control_storage_default_admin_role_data_slot)
+        # set the account role to true
+        admin_addr_slot_value = 0x1
+        admin_addr_slot_value_bytes = int_to_big_endian(admin_addr_slot_value).rjust(32, b'\0')
+
+        # add to configs 
+        configs["0x" + admin_addr_slot.hex()] = "0x" + admin_addr_slot_value_bytes.hex()
+
+        # set the `adminRole` to `DEFAULT_ADMIN_ROLE` in `RoleData`
+        if account is None: # we set system admin addr as `adminRole`
+            admin_role_base_slot = 1
+            admin_role_slot = self._bytes_add_num(access_control_storage_default_admin_role_data_slot, admin_role_base_slot)
+            default_admin_role = 0x00
+            admin_role_slot_value = int_to_big_endian(default_admin_role).rjust(32, b'\0')
+            configs["0x" + admin_role_slot.hex()] = "0x" + admin_role_slot_value.hex()
+
+
+
+    def _generate_disable_upgradeable_contract_initializers(self, configs: Dict[str, str]):
+        """
+        struct InitializableStorage {
+            /**
+             * @dev Indicates that the contract has been initialized.
+             */
+            uint64 _initialized;
+            /**
+             * @dev Indicates that the contract is in the process of being initialized.
+             */
+            bool _initializing;
+        }
+
+        // keccak256(abi.encode(uint256(keccak256("openzeppelin.storage.Initializable")) - 1)) & ~bytes32(uint256(0xff))
+        bytes32 private constant INITIALIZABLE_STORAGE = 0xf0c57e16840df040f15088dc2f81fe391c3923bec73e23a9662efc9c229c6a00;
+
+        function _disableInitializers() internal virtual {
+            // solhint-disable-next-line var-name-mixedcase
+            InitializableStorage storage $ = _getInitializableStorage();
+
+            if ($._initializing) {
+                revert InvalidInitialization();
+            }
+            if ($._initialized != type(uint64).max) {
+                $._initialized = type(uint64).max;
+                emit Initialized(type(uint64).max);
+            }
+        }
+        function _getInitializableStorage() private pure returns (InitializableStorage storage $) {
+            bytes32 slot = _initializableStorageSlot();
+            assembly {
+                $.slot := slot
+            }
+        }
+
+        function _initializableStorageSlot() internal pure virtual returns (bytes32) {
+            return INITIALIZABLE_STORAGE;
+        }
+        
+        """
+
+        initializable_storage_base_slot = "f0c57e16840df040f15088dc2f81fe391c3923bec73e23a9662efc9c229c6a00"
+        initializable_storage_base_slot_bytes = bytes.fromhex(initializable_storage_base_slot).rjust(32, b'\0')
+
+        # the `_initialized` and `_initializing` are in the same slot, so we set the value directly here
+        # set `_initialized`
+        initializable_storage_base_slot_value_of_initialized = 0xffffffffffffffff # uint64_max
+        initialized_value_bytes_len = len(int_to_big_endian(initializable_storage_base_slot_value_of_initialized))
+        initializable_storage_base_slot_value_of_initialized_bytes = int_to_big_endian(initializable_storage_base_slot_value_of_initialized).rjust(32, b'\0')
+
+        # set `_initializing`
+        initializable_storage_base_slot_value_of_initializing = 0x0 # false
+        # left pad
+        left_pad_length = 32 - initialized_value_bytes_len
+        initializable_storage_base_slot_value_of_initializing_bytes = int_to_big_endian(initializable_storage_base_slot_value_of_initializing).rjust(left_pad_length, b'\0')
+        # right pad. Actually when `_initializing` is false, the value is all-zeros
+        initializable_storage_base_slot_value_of_initializing_bytes = initializable_storage_base_slot_value_of_initializing_bytes.ljust(32, b'\0')
+        
+        # bitwise merge `_initialized` and `_initializing`
+        initializable_storage_base_slot_value = self._bytes_bitwise_add(initializable_storage_base_slot_value_of_initialized_bytes, initializable_storage_base_slot_value_of_initializing_bytes)
+
+        configs["0x" + initializable_storage_base_slot_bytes.hex()] = "0x" + initializable_storage_base_slot_value.hex()
 
     def _generate_domain(self, domain_label: str, dinfo: DomainSummary) -> Domain:
         domain = Domain()
@@ -709,6 +835,20 @@ class Generator(object):
         total_stake_bytes = int_to_big_endian(total_stake_in_wei).rjust(32, b'\0')
         storage_slot_kvs["0x" + total_stake_base_slot_bytes.hex()] = "0x" + total_stake_bytes.hex()
 
+        # slot 7 config addr
+        cfg_base_slot = 7
+        cfg_base_slot_bytes = to_bytes(cfg_base_slot).rjust(32, b'\0')
+        cfg_addr = "3100000000000000000000000000000000000000"
+        cfg_addr_bytes = bytes.fromhex(cfg_addr).rjust(32, b'\0')
+        storage_slot_kvs["0x" + cfg_base_slot_bytes.hex()] = "0x" + cfg_addr_bytes.hex()
+
+        # add access_control and disable initializers
+        intrinsic_tx_sender = "1111111111111111111111111111111111111111"
+        self._generate_access_control_admin(storage_slot_kvs, self._deploy.admin_addr) # default admin
+        self._generate_access_control_admin(storage_slot_kvs, intrinsic_tx_sender) # intrinsic sender
+        self._generate_disable_upgradeable_contract_initializers(storage_slot_kvs)
+
+
         genesis_data = utils.load_json(self._deploy.genesis_tpl)
         genesis_data['domains'] = genesis_domains
         sys_staking_addr = '4100000000000000000000000000000000000000'
@@ -730,6 +870,13 @@ class Generator(object):
         # generate chaincfg storage slot
         sys_chaincfg_addr = '3100000000000000000000000000000000000000'
         storage_slot_kvs = self._generate_chaincfg_slots(genesis_data['configs'])
+
+        # add access_control and disable initializers
+        intrinsic_tx_sender = "1111111111111111111111111111111111111111"
+        self._generate_access_control_admin(storage_slot_kvs, self._deploy.admin_addr) # default admin
+        self._generate_access_control_admin(storage_slot_kvs, intrinsic_tx_sender) # intrinsic sender
+        self._generate_disable_upgradeable_contract_initializers(storage_slot_kvs)
+
         # 非proxy代理部署
         if 'storage' not in genesis_data['alloc'][sys_chaincfg_addr]:
             chaincfg_storage_slot_kvs = storage_slot_kvs
@@ -741,7 +888,12 @@ class Generator(object):
 
         # generate rule mng storage slot
         sys_rule_mng_addr = '2100000000000000000000000000000000000000'
-        storage_slot_kvs = self._generate_rule_mng_slots(genesis_data['alloc'][sys_rule_mng_addr]['storage'])
+        storage_slot_kvs = genesis_data['alloc'][sys_rule_mng_addr]['storage']
+        intrinsic_tx_sender = "1111111111111111111111111111111111111111"
+        self._generate_access_control_admin(storage_slot_kvs, self._deploy.admin_addr) # default admin
+        self._generate_access_control_admin(storage_slot_kvs, intrinsic_tx_sender) # intrinsic sender
+        self._generate_disable_upgradeable_contract_initializers(storage_slot_kvs)
+
         genesis_data['alloc'][sys_rule_mng_addr]['storage'] = storage_slot_kvs
 
         # write admin addr
