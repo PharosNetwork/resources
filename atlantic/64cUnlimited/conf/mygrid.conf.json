@@ -40,13 +40,13 @@
         "storage_kernel_rocksdb_global_rate_limiter_mode": 2,
         "mygrid_client_open_flat_kv_cache": true,
         "mygrid_flat_cache_partition_capacity": 134217728,
+        "//将Grid线程池与Partition线程池分开": "",
         "mygrid_client_grid_thread_num": 1,
         "page_release_batch_size_when_destruct_merke_mem_index": 100,
         "mygrid_master_to_server_auto_prune_period_us": 43200000000,
         "mygrid_client_open_history_kv_cache": true,
         "mygrid_history_cache_partition_capacity": 107374182400,
         "mygrid_history_kv_cache_version_gap": 300000000,
-        "letus_prune_compaction_max_concurrent_count": 0,
         "mygrid_client_history_kv_full_cache": true
       }
     }
