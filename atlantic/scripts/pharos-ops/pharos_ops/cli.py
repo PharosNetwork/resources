@@ -355,8 +355,6 @@ def set_ip(ip: str, deploy_file: str, cubenet_file: str):
     with open(cubenet_file, 'r', encoding='utf-8') as cf:
         data = json.load(cf, object_pairs_hook=OrderedDict)
         port = data["cubenet"]["p2p"]["host"][0]["port"]
-        logs.info(str(data))
-        logs.info(str(port))
         data["cubenet"]["p2p"]["host"][0]["public_address"] = {
             "ip": ip,
             "port": port,
