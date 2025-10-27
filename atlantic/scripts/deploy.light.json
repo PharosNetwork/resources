@@ -165,7 +165,7 @@
       "client_http_port": 18100,
       "cluster": [
         {
-          "host": "18.141.199.38",
+          "host": "127.0.0.1",
           "start_port": 20000,
           "deploy_ip": "127.0.0.1",
           "instances": "light"
