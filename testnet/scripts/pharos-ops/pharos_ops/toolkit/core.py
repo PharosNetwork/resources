@@ -187,13 +187,16 @@ class Composer(object):
 
         # ========数据解析以及默认值设定=========
         # 对于未配置的secret file，根据key_type使用默认的key files (即deploy_type=dev)
+        key_file = 'generate.key' if self._domain.use_generated_keys else 'new.key'
+        pkey_file = 'generate.pub' if self._domain.use_generated_keys else 'new.pub'
+        
         if self.domain_secret.files.get('key') is None:
             self.domain_secret.files[
-                'key'] = f'../scripts/resources/domain_keys/{self.domain_secret.key_type}/{self.domain_label}/new.key'
-            self.domain_secret.files['key_pub'] = f'../scripts/resources/domain_keys/{self.domain_secret.key_type}/{self.domain_label}/new.pub'
+                'key'] = f'../scripts/resources/domain_keys/{self.domain_secret.key_type}/{self.domain_label}/{key_file}'
+            self.domain_secret.files['key_pub'] = f'../scripts/resources/domain_keys/{self.domain_secret.key_type}/{self.domain_label}/{pkey_file}'
         if self.domain_secret.files.get('stabilizing_key') is None:
             self.domain_secret.files[
-                'stabilizing_key'] = f'../scripts/resources/domain_keys/bls12381/{self.domain_label}/new.key'
+                'stabilizing_key'] = f'../scripts/resources/domain_keys/bls12381/{self.domain_label}/{key_file}'
 
         key_type = self.client_secret.key_type
         if self.client_secret.files.get('ca_cert') is None:
@@ -258,7 +261,6 @@ class Composer(object):
                         break
             if instance.service in [const.SERVICE_PORTAL, const.SERVICE_LIGHT]:
                 self._domain_ip = instance.ip
-                self._domain_host = instance.host
                 self._domain_port = instance.env['DOMAIN_LISTEN_URLS0'].split('//')[-1].split(':')[-1]
 
             # generate etcd token
@@ -490,7 +492,7 @@ class Composer(object):
 
     @property
     def domain_endpoint(self) -> str:
-        return f'tcp://{self._domain_host}:{self._domain_port}'
+        return f'tcp://{self._domain_ip}:{self._domain_port}'
 
     def _instances(self, service=None) -> Dict[str, List[Instance]]:
         if not service:
@@ -653,7 +655,7 @@ class Composer(object):
                     if backup:
                         conn.run(f'mv {deploy_bin_dir}/{const.EVMONE_SO} {deploy_bin_dir}/{const.EVMONE_SO}_bak')
                     conn.sync(self._build_file('bin', const.EVMONE_SO), deploy_bin_dir)
-                    
+
             # link binary
             for instance in instances:
                 logs.info(f'deploy {instance.name} at {conn.host}:{instance.dir}')
@@ -719,16 +721,40 @@ class Composer(object):
                     port_str = self.cluster[instance.name].env["DOMAIN_LISTEN_URLS0"].split(':')[-1]
                     port_offset = int(dog_json_file['config']['cubenet']['port_offset'])
                     cubenet_conf_data['cubenet']['p2p']['host'][0]['port'] =  str(int(port_str)+ port_offset)
-
-                    cubenet_certs_dir = join(instance.dir, 'certs/')
-                    domain_key_filename = os.path.basename(self.domain_secret.files['key'])
-                    domain_key_full_abs_path = os.path.abspath(join(cubenet_certs_dir, domain_key_filename))
-                    conn.sync(self.domain_secret.files['key'], domain_key_full_abs_path)
-                    cubenet_conf_data['cubenet']['p2p']['private_key_file'] = domain_key_full_abs_path
-
                     cubenet_conf_file = join(instance.dir, 'conf/cubenet.conf')
                     self._dump_json(cubenet_conf_file, cubenet_conf_data, conn=conn)
 
+                    # Only handle cubenet service, write light subsequently uniformly
+                    if self.cluster[instance.name].service == const.SERVICE_DOG:
+                        key_file = 'generate.key' if self._domain.use_generated_keys else 'new.key'
+                        target_key_file = key_file if self._domain.use_generated_keys else 'generate.key'
+
+                        cubenet_certs_dir = join(instance.dir, 'certs/')
+                        conn.sync(self._build_file(f'scripts/resources/domain_keys/prime256v1/{self._domain.domain_label}/{key_file}'), join(cubenet_certs_dir, target_key_file))
+
+            # Two sets of key pairs are copied to the deployment path.
+            if self.cluster[instance.name].service == const.SERVICE_LIGHT:             
+                key_file = 'generate.key' if self._domain.use_generated_keys else 'new.key'
+                pkey_file = 'generate.pub' if self._domain.use_generated_keys else 'new.pub'
+
+                deploy_certs_dir = join(instance.dir, 'certs/')
+
+                # 传输时指定目标文件名
+                key_files = [
+                    (f'scripts/resources/domain_keys/prime256v1/{self._domain.domain_label}/{key_file}', 'generate.key'),
+                    (f'scripts/resources/domain_keys/prime256v1/{self._domain.domain_label}/{pkey_file}', 'generate.pub'),
+                    (f'scripts/resources/domain_keys/bls12381/{self._domain.domain_label}/{key_file}', 'generate_bls.key'),
+                    (f'scripts/resources/domain_keys/bls12381/{self._domain.domain_label}/{pkey_file}', 'generate_bls.pub')
+                ]
+                
+                for src_path, target_name in key_files:
+                    src_full_path = self._build_file(src_path)
+                    if os.path.exists(src_full_path):
+                        conn.sync(src_full_path, join(deploy_certs_dir, target_name))
+                        logs.info(f'Synced {target_name} to {conn.host}')
+                    else:
+                        logs.info(f'Key file {target_name} not found, skipping') 
+                                                   
             # generate mygrid config json and mygrid env json
             mygrid_config_json_file = join(instance.dir, f'conf/{const.MYGRID_CONF_JSON_FILENAME}')
             self._dump_json(mygrid_config_json_file, self._mygrid_conf_json, conn=conn)
@@ -814,6 +840,8 @@ class Composer(object):
             'conf', f'resources/poke/{key_type}/admin.key'), cli_bin_dir)
         local.sync(self._build_file(
             'conf', f'resources/poke/{key_type}/client'), cli_bin_dir)
+        local.sync(self._build_file('conf', 'artifacts'),
+                   self.local_client_dir)
 
         # copy genesis_conf and rename to genesis.conf
         local.sync(self._domain.genesis_conf,
@@ -939,12 +967,24 @@ class Composer(object):
 
             conn.sync(self.local_client_dir, self.deploy_dir,  rsync_opts=sync_opts)
 
-    def sync_cli_conf(self, local_client_dir: str, deploy_client_host, remote_client_dir):
+    def sync_cli_conf(self, local_client_dir: str, deploy_client_host, remote_client_dir):        
         with Connection(deploy_client_host, user=self.run_user) as conn:
-            bin_exclude = " ".join(f"--exclude='{item}'" for item in const.CLI_BINARYS)
-            sync_opts = f'-avzL --ignore-existing {bin_exclude}'
-
-            conn.sync(self.local_client_dir, self.deploy_dir, rsync_opts=sync_opts)
+            includes = [
+                "--include=conf/",        
+                "--include=conf/**",      
+                "--include=bin/",         
+                "--include=bin/*.conf",
+                "--include=bin/*.json",
+                "--exclude=*"
+            ]
+            
+            sync_opts = f'-avzL {" ".join(includes)}'
+            
+            source_path = self.local_client_dir.rstrip('/') + '/'
+            target_path = f"{self.deploy_dir}/client/"
+            
+            logs.info(f'update client conf: {source_path} -> {deploy_client_host}:{target_path}')  
+            conn.sync(source_path, target_path, rsync_opts=sync_opts)   
 
     def update(self, service=None):
         logs.info(f'update {self.domain_label}, service: {service}')
@@ -1773,7 +1813,7 @@ class Composer(object):
             'value': 1000000000000000000,
             'from': account.address,
             'nonce': web3.eth.getTransactionCount(account.address),
-            'gasPrice': 1
+            'gasPrice': 1000000000
         })
 
         signed_tx = web3.eth.account.sign_transaction(tx, key)
@@ -1821,7 +1861,7 @@ class Composer(object):
             'from': account.address,
             'nonce': web3.eth.getTransactionCount(account.address),
             'gas': 2000000,  # 默认 gas limit
-            'gasPrice': 1
+            'gasPrice': 1000000000
         })
 
         signed_tx = web3.eth.account.sign_transaction(tx, key)
@@ -1929,42 +1969,49 @@ class Composer(object):
                                       "awk -F: '{system(\"kill -15 \"$1\" 2>&1\")}'")
             conn.run(cmd)
 
-    def stop_host(self, conn: Connection, service):
-        logs.info(f'stop service {service} on {conn.host}')
+    def stop_host(self, conn: Connection, service, force=False):
+        logs.info(f'stop service {service} on {conn.host}, force {force}')
 
         if self.enable_docker and not service:
             conn.run(f'cd {self.deploy_dir}; docker compose stop', warn=True)
         else:
-            for instance in self._instances(service).get(conn.host, []):
-                self.graceful_stop_instance(instance, conn)
-            timeout = 5
-            while self.status_host(conn, service) == 0:
-                if timeout <= 0:
-                    for instance in self._instances(service).get(conn.host, []):
-                        self.stop_instance(instance, conn)
-                    logs.info(
-                        f'stop service {service} on {conn.host} immediately')
-                    break
-                timeout -= 1
-                logs.debug(
-                    f'stop service {service} on {conn.host} will sleep 1s')
-                time.sleep(1)
+            if force == False:
+                for instance in self._instances(service).get(conn.host, []):
+                    self.graceful_stop_instance(instance, conn)
+                timeout = 5
+                while self.status_host(conn, service) == 0:
+                    if timeout <= 0:
+                        for instance in self._instances(service).get(conn.host, []):
+                            self.stop_instance(instance, conn)
+                        logs.info(
+                            f'stop service {service} on {conn.host} immediately')
+                        break
+                    timeout -= 1
+                    logs.debug(
+                        f'stop service {service} on {conn.host} will sleep 1s')
+                    time.sleep(1)
+                else:
+                    logs.info(f'stop service {service} on {conn.host} gracefully')
             else:
-                logs.info(f'stop service {service} on {conn.host} gracefully')
-
-    def stop_service(self, service):
-        logs.info(f'stop service {service}')
+                # force stop
+                for instance in self._instances(service).get(conn.host, []):
+                    self.stop_instance(instance, conn)
+                logs.info(
+                    f'stop service {service} on {conn.host} immediately')
+            
+    def stop_service(self, service, force=False):
+        logs.info(f'stop service {service} force {force}')
 
         # stop: 顺序停止, 不并行
         for host in self._instances(service):
             with Connection(host, user=self.run_user) as conn:
-                self.stop_host(conn, service)
+                self.stop_host(conn, service, force)
 
-    def stop(self, service=None):
-        logs.info(f'stop {self.domain_label}, service: {service}')
+    def stop(self, service=None, force=False):
+        logs.info(f'stop {self.domain_label}, service: {service}, force: {force}')
 
         if self.enable_docker and not service:
-            self.stop_service(None)
+            self.stop_service(None, force)
             self.status(None)
             return
 
@@ -1972,13 +2019,13 @@ class Composer(object):
             if service not in [None, 'light']:
                 logs.error('light mode only has light instance')
                 return
-            self.stop_service(const.SERVICE_LIGHT)
+            self.stop_service(const.SERVICE_LIGHT, force)
         elif service is None:  # ultra模式
             # stop 逐个停止每个服务
             for s in reversed(const.SERVICES):
-                self.stop_service(s)
+                self.stop_service(s, force)
         else:
-            self.stop_service(service)
+            self.stop_service(service, force)
         self.status(service)
 
     """
@@ -1991,6 +2038,21 @@ class Composer(object):
     def start_instance(self, instance: Instance, conn: Connection):
         logs.info(f'start {instance} on {conn.host}')
 
+        if self._domain.enable_setkey_env:
+            # 准备环境变量前缀
+            env_prefix = f"export CONSENSUS_KEY_PWD='{self._domain.key_passwd}'; export PORTAL_SSL_PWD='{self._domain.portal_ssl_pass}';"
+            logs.info(f'Setting environment variables at {conn.host}')            
+        else:
+            # enable_setkey_env关闭时，需手动设置环境变量
+            # 检查多个环境变量
+            env_vars_to_check = ['CONSENSUS_KEY_PWD', 'PORTAL_SSL_PWD']
+
+            for env_var in env_vars_to_check:
+                check_env_result = conn.run(f"[ -n \"${env_var}\" ]", warn=True)
+                if not check_env_result.ok:
+                    raise Exception(f"{env_var} environment variable not set at {conn.host}. Please set it manually.")
+                logs.info(f'Environment variable {env_var} verified at {conn.host}')
+    
         if self.enable_docker:
             conn.run(
                 f'cd {self.deploy_dir}; docker compose start {instance.name}')
@@ -2005,10 +2067,11 @@ class Composer(object):
                         cmd = f"cd {work_dir}; ./{binary} -c ../conf/launch.conf -d"
                 else:
                     if self.chain_protocol == const.PROTOCOL_EVM or self.chain_protocol == const.PROTOCOL_ALL:
-                        cmd = f"cd {work_dir}; LD_PRELOAD=./{const.EVMONE_SO} -c ../conf/launch.conf -s {instance.service} -d"
+                        cmd = f"cd {work_dir}; LD_PRELOAD=./{const.EVMONE_SO} ./{binary} -c ../conf/launch.conf -s {instance.service} -d"
                     else:
                         cmd = f"cd {work_dir}; ./{binary} -c ../conf/launch.conf -s {instance.service} -d"
-                conn.run(cmd)
+                conn.run(f"{env_prefix}{cmd}")
+
             elif instance.service == const.SERVICE_ETCD:
                 cmds = []
                 for k, v in instance.env.items():
@@ -2023,7 +2086,7 @@ class Composer(object):
                 time.sleep(3)
                 logs.info(f'{conn.host}: {cmd}')
                 cmds.append(cmd)
-                conn.run(';'.join(cmds))
+                conn.run(f"{env_prefix}{';'.join(cmds)}")
 
             elif instance.service == const.SERVICE_STORAGE:
                 cmds = []
@@ -2036,7 +2099,7 @@ class Composer(object):
                 cmd += f"cd {work_dir}; ./{binary} --role=server --server_id=0 --conf=../conf/{const.MYGRID_CONF_JSON_FILENAME} --env=../conf/{const.MYGRID_ENV_JSON_FILENAME} > server.log 2>&1 &"
                 logs.info(f'{conn.host}: {cmd}')
                 cmds.append(cmd)
-                conn.run(';'.join(cmds))
+                conn.run(f"{env_prefix}{';'.join(cmds)}")
                 time.sleep(3)
 
     def start_host(self, conn: Connection, service):

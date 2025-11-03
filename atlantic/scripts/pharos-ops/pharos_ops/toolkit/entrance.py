@@ -275,14 +275,72 @@ def restart(domain_files: str, service: str, extra_storage_args: str):
 
 
 @catch_exception
-def stop(domain_files: str, service: str):
+def stop(domain_files: str, service: str, force=False):
     """
     Command: pharos-ops start
     """
     # TODO 多domain_files部署的时候，确保所有domain_files的chain_id/genesis.conf一致, domain_label不冲突
     for domain_file in domain_files:
         composer = core.Composer(domain_file)
-        composer.stop(service)
+        composer.stop(service, force)
+
+
+@catch_exception
+def upgrade():
+    """
+    Command: pharos-ops upgrade
+    """
+    fh = open("./deploy.light.json", "r")
+    deploy_data = json.load(fh)
+    deploy = DeploySchema().load(deploy_data)
+
+    deploy_path = f"{deploy.deploy_root}"
+    original_cwd = os.getcwd()
+    logs.info(f"original_cwd: {original_cwd}")
+    logs.info(f"deploy_path: {deploy_path}")
+    files_to_remove = [
+        f"{deploy_path}/domain/light/bin/libevmone.so",
+        f"{deploy_path}/domain/light/bin/pharos_light",
+        f"{deploy_path}/domain/light/bin/VERSION",
+        f"{deploy_path}/domain/client/bin/pharos_cli",
+    ]
+    for file_path in files_to_remove:
+        if os.path.exists(file_path):
+            os.remove(file_path)
+
+    symlinks = [
+        (
+            f"{original_cwd}/../bin/libevmone.so",
+            f"{deploy_path}/domain/light/bin/libevmone.so",
+        ),
+        (
+            f"{original_cwd}/../bin/pharos_light",
+            f"{deploy_path}/domain/light/bin/pharos_light",
+        ),
+        (
+            f"{original_cwd}/../bin/VERSION",
+            f"{deploy_path}/domain/light/bin/VERSION",
+        ),
+    ]
+    for src, dst in symlinks:
+        if os.path.lexists(dst):
+            os.remove(dst)
+        os.symlink(src, dst)
+
+    try:
+        # shutil.copyfile(
+        #     f"{deploy_path}/domain/light/conf/monitor.conf",
+        #     f"{original_cwd}/../conf/monitor.conf",
+        # )
+
+        shutil.copyfile(
+            f"{original_cwd}/../bin/pharos_cli",
+            f"{deploy_path}/domain/client/bin/pharos_cli",
+        )
+    except Exception as e:
+        logs.error(f"Upgrade failed: {e}")
+    finally:
+        os.chdir(original_cwd)
 
 
 @catch_exception
