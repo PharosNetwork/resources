@@ -79,8 +79,9 @@ class Generator(object):
         else:
             return start + const.SERVICES.index(service) * 1000
 
-    def _generate_prikey(self, key_type:str, key_dir: str, key_file: str = "new.key", key_passwd: str = "123abc"):
+    def _generate_prikey(self, key_type:str, key_dir: str, key_file: str, key_passwd: str = "123abc"):
         prikey_path = join(key_dir, key_file)
+        pubkey_file = key_file.replace('.key', '.pub')
 
         if exists(prikey_path):
             logs.debug(f"exsited key: {prikey_path}, override it with new key")
@@ -97,12 +98,12 @@ class Generator(object):
         if key_type == pharos.KeyType.PRIME256V1.value:
             local.run(f"openssl ecparam -name prime256v1 -genkey | openssl pkcs8 -topk8 -outform pem -out {prikey_path} -v2 aes-256-cbc -v2prf hmacWithSHA256 -passout pass:{key_passwd}")
             pubkey, _ = Generator._get_pubkey(key_type, prikey_path, key_passwd)
-            local.run(f"echo {pubkey} > {key_dir}/new.pub")
+            local.run(f"echo {pubkey} > {key_dir}/{pubkey_file}")
 
         elif key_type == pharos.KeyType.RSA.value:
             local.run(f"openssl genrsa 2048 | openssl pkcs8 -topk8 -outform pem -out {prikey_path} -v2 aes-256-cbc -v2prf hmacWithSHA256 -passout pass:{key_passwd}")
             pubkey, _ = Generator._get_pubkey(key_type, prikey_path, key_passwd)
-            local.run(f"echo {pubkey} > {key_dir}/new.pub")
+            local.run(f"echo {pubkey} > {key_dir}/{pubkey_file}")
 
         elif key_type == pharos.KeyType.SM2.value:
             logs.error(f'{key_type} is not supported')
@@ -122,8 +123,8 @@ class Generator(object):
             bls_prikey = ret.stdout.split()[0].split(':')[1] # get prikey content
             bls_pubkey = ret.stdout.split()[1].split(':')[1] # get pubkey content
 
-            local.run(f"echo {bls_prikey} > {key_dir}/new.key")
-            local.run(f"echo {bls_pubkey} > {key_dir}/new.pub")
+            local.run(f"echo {bls_prikey} > {key_dir}/{key_file}")
+            local.run(f"echo {bls_pubkey} > {key_dir}/{pubkey_file}")
 
 
     def _get_pubkey(key_type:str, prikey_path: str, key_passwd: str = "123abc") -> (str, str):
@@ -590,6 +591,11 @@ class Generator(object):
             domain.key_passwd = dinfo.key_passwd if dinfo.key_passwd else default_keypasswd
             logs.debug(f'{domain.domain_label} key passwd is {domain.key_passwd}')
 
+            domain.portal_ssl_pass = dinfo.portal_ssl_pass if dinfo.portal_ssl_pass else default_keypasswd
+            logs.debug(f'{domain.domain_label} portal_ssl_pass is {domain.portal_ssl_pass}')
+
+        domain.enable_setkey_env = dinfo.enable_setkey_env
+
         domain.deploy_dir = dinfo.deploy_dir if dinfo.deploy_dir else join(
             self._deploy.deploy_root, domain_label)
 
@@ -601,32 +607,36 @@ class Generator(object):
         stabilizing_key_dir = self._build_file(
                 f'scripts/resources/domain_keys/{bls_keytype}/{domain_label}')
 
+        # 生成的Key与默认Key 命名隔离
+        key_file = 'generate.key' if domain.use_generated_keys else 'new.key'
+        pkey_file = 'generate.pub' if domain.use_generated_keys else 'new.pub'
+
         if domain.use_generated_keys:
             # generate domain key
-            self._generate_prikey(self._deploy.domain_key_type, key_dir, key_passwd=domain.key_passwd)
+            self._generate_prikey(self._deploy.domain_key_type, key_dir, key_file, key_passwd=domain.key_passwd)
             # generate bls key
-            self._generate_prikey(bls_keytype, stabilizing_key_dir)
+            self._generate_prikey(bls_keytype, stabilizing_key_dir, key_file)
 
         else:
-            if domain_label in const.PREDEFINED_DOMAINS or exists(join(key_dir, 'new.key')) or exists(join(key_dir, 'new.pub')):
+            if domain_label in const.PREDEFINED_DOMAINS or exists(join(key_dir, key_file)) or exists(join(key_dir, pkey_file)):
                 logs.info(
-                    f'use predefined domain key, or exsited key: {key_dir}/new.key')
+                    f'use predefined domain key, or exsited key: {key_dir}/{key_file}')
             else:
                 logs.info(
                     f'no predefined domain key for {domain_label}, create new key')
                 local.run(f'mkdir -p {key_dir}')
                 local.run(
-                    f"openssl ecparam -name prime256v1 -genkey | openssl pkcs8 -topk8 -passout pass:123abc -out {join(key_dir, 'new.key')}")
+                    f"openssl ecparam -name prime256v1 -genkey | openssl pkcs8 -topk8 -passout pass:123abc -out {join(key_dir, key_file)}")
             stabilizing_key_dir = self._build_file(
                 f'scripts/resources/domain_keys/bls12381/{domain_label}')
-            if not (exists(join(stabilizing_key_dir, 'new.key')) or exists(join(stabilizing_key_dir, 'new.pub'))):
+            if not (exists(join(stabilizing_key_dir, key_file)) or exists(join(stabilizing_key_dir, pkey_file))):
                 logs.fatal(
-                    f'failed to use predefined stabilizing key: {stabilizing_key_dir}/new.key')
+                    f'failed to use predefined stabilizing key: {stabilizing_key_dir}/{key_file}')
         domain.secret.domain.files = {
-            'key': f'{key_dir}/new.key',
-            'key_pub': f'{key_dir}/new.pub',
-            'stabilizing_key': f'{stabilizing_key_dir}/new.key',
-            'stabilizing_pk': f'{stabilizing_key_dir}/new.pub'
+            'key': f'{key_dir}/{key_file}',
+            'key_pub': f'{key_dir}/{pkey_file}',
+            'stabilizing_key': f'{stabilizing_key_dir}/{key_file}',
+            'stabilizing_pk': f'{stabilizing_key_dir}/{pkey_file}'
         }
         key_type = self._deploy.client_key_type
         domain.secret.client.files = {
@@ -672,7 +682,6 @@ class Generator(object):
                 instance.dir = join(domain.deploy_dir, inst_name)
                 instance.service = inst_name.rstrip(string.digits)
                 instance.ip = desc.deploy_ip
-                instance.host = desc.host
                 idx_suffix = inst_name.lstrip(string.ascii_letters)
                 idx = int(idx_suffix) if idx_suffix else 0
                 rpc_port = self._start_port(start_port, instance.service) + idx
