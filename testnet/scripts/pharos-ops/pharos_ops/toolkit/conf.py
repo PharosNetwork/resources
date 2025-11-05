@@ -54,9 +54,14 @@ def read_keyfile_to_hex(type: str, prikey_path: str, key_passwd: str):
 class Generator(object):
     """class for generate domain files of a chain"""
 
-    def __init__(self, deploy_file: str):
+    def __init__(self, deploy_file: str, key_passwd: str = ""):
         self._deploy_file_path = dirname(abspath(deploy_file))
         deploy_data = utils.load_json(deploy_file)
+        if key_passwd != "":
+            deploy_data["domains"]["domain"]["key_passwd"] = key_passwd
+            with open(deploy_file, "w") as fh:
+                self._deploy = DeploySchema().load(deploy_data)
+                json.dump(DeploySchema().dump(self._deploy), fh, indent=2)
         self._deploy = DeploySchema().load(deploy_data)
         if not samefile(self._abspath(self._deploy.build_root), dirname(self._deploy_file_path)):
             raise Exception('deploy file should be in $build_root/scripts')

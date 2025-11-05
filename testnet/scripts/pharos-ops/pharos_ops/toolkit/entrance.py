@@ -36,12 +36,12 @@ def catch_exception(fn):
 
 
 @catch_exception
-def generate(deploy_file: str, need_genesis: bool = False):
+def generate(deploy_file: str, need_genesis: bool = False, key_passwd: str = ""):
     """
     Command: pharos-ops configure
     """
 
-    generator = conf.Generator(deploy_file)
+    generator = conf.Generator(deploy_file, key_passwd)
     generator.run(need_genesis)
 
 @catch_exception

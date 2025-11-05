@@ -38,9 +38,10 @@ def cli(debug):
 @cli.command(help='Generate domain files')
 @click.argument('deploy_file', default='deploy.json', type=click.Path(exists=True))
 @click.option("--genesis", "-g", is_flag=True, help="need generate genesis")
-def generate(deploy_file,genesis):
+@click.option("--key_passwd", default="", help="key passwd")
+def generate(deploy_file,genesis,key_passwd):
     click.echo(click.format_filename(deploy_file))
-    entrance.generate(deploy_file, genesis)
+    entrance.generate(deploy_file, genesis, key_passwd)
 
 @cli.command(help="Generate genesis files")
 @click.argument("deploy_file", default="deploy.json", type=click.Path(exists=True))
