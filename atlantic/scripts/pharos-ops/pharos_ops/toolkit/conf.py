@@ -79,8 +79,9 @@ class Generator(object):
         else:
             return start + const.SERVICES.index(service) * 1000
 
-    def _generate_prikey(self, key_type:str, key_dir: str, key_file: str = "new.key", key_passwd: str = "123abc"):
+    def _generate_prikey(self, key_type:str, key_dir: str, key_file: str, key_passwd: str = "123abc"):
         prikey_path = join(key_dir, key_file)
+        pubkey_file = key_file.replace('.key', '.pub')
 
         if exists(prikey_path):
             logs.debug(f"exsited key: {prikey_path}, override it with new key")
@@ -97,12 +98,12 @@ class Generator(object):
         if key_type == pharos.KeyType.PRIME256V1.value:
             local.run(f"openssl ecparam -name prime256v1 -genkey | openssl pkcs8 -topk8 -outform pem -out {prikey_path} -v2 aes-256-cbc -v2prf hmacWithSHA256 -passout pass:{key_passwd}")
             pubkey, _ = Generator._get_pubkey(key_type, prikey_path, key_passwd)
-            local.run(f"echo {pubkey} > {key_dir}/new.pub")
+            local.run(f"echo {pubkey} > {key_dir}/{pubkey_file}")
 
         elif key_type == pharos.KeyType.RSA.value:
             local.run(f"openssl genrsa 2048 | openssl pkcs8 -topk8 -outform pem -out {prikey_path} -v2 aes-256-cbc -v2prf hmacWithSHA256 -passout pass:{key_passwd}")
             pubkey, _ = Generator._get_pubkey(key_type, prikey_path, key_passwd)
-            local.run(f"echo {pubkey} > {key_dir}/new.pub")
+            local.run(f"echo {pubkey} > {key_dir}/{pubkey_file}")
 
         elif key_type == pharos.KeyType.SM2.value:
             logs.error(f'{key_type} is not supported')
@@ -122,8 +123,8 @@ class Generator(object):
             bls_prikey = ret.stdout.split()[0].split(':')[1] # get prikey content
             bls_pubkey = ret.stdout.split()[1].split(':')[1] # get pubkey content
 
-            local.run(f"echo {bls_prikey} > {key_dir}/new.key")
-            local.run(f"echo {bls_pubkey} > {key_dir}/new.pub")
+            local.run(f"echo {bls_prikey} > {key_dir}/{key_file}")
+            local.run(f"echo {bls_pubkey} > {key_dir}/{pubkey_file}")
 
 
     def _get_pubkey(key_type:str, prikey_path: str, key_passwd: str = "123abc") -> (str, str):
@@ -228,7 +229,7 @@ class Generator(object):
         poolid = hashlib.sha256(bytes(pubkey_bytes)).digest()
 
         # 1. for `mapping(bytes32 => Validator) public validators`
-        validators_map_base_slot = 0
+        validators_map_base_slot = 1
         validators_map_base_slot_bytes = int_to_big_endian(validators_map_base_slot).rjust(32, b'\0')
         validators_map_validator_slot = keccak(poolid + validators_map_base_slot_bytes)
 
@@ -343,7 +344,7 @@ class Generator(object):
 
 
         # 13. add for `bytes32[] public activePoolIds;`
-        active_pool_ids_base_slot = 1
+        active_pool_ids_base_slot = 2
         ## 13.1 put array length
         active_pool_ids_base_slot_bytes = to_bytes(active_pool_ids_base_slot).rjust(32, b'\0')
         active_pool_ids_length = to_bytes(total_domains).rjust(32, b'\0')
@@ -353,19 +354,26 @@ class Generator(object):
         active_pool_id_final_validator_slot = self._bytes_add_num(active_pool_id_final_slot, domain_index)
         slots["0x" + active_pool_id_final_validator_slot.hex()] = "0x" + poolid.hex()
 
-        # 15. config addr
-        cfg_base_slot = 7
-        cfg_base_slot_bytes = to_bytes(cfg_base_slot).rjust(32, b'\0')
-        cfg_addr = "3100000000000000000000000000000000000000"
-        cfg_addr_bytes = bytes.fromhex(cfg_addr).rjust(32, b'\0')
-        slots["0x" + cfg_base_slot_bytes.hex()] = "0x" + cfg_addr_bytes.hex()
+        # # 14. epoch num
+        # epoch_base_slot = 5
+        # epoch_base_slot_bytes = to_bytes(epoch_base_slot).rjust(32, b'\0')
+        # epoch_num = 0
+        # epoch_num_bytes = to_bytes(epoch_num).rjust(32, b'\0')
+        # slots["0x" + epoch_base_slot_bytes.hex()] = "0x" + epoch_num_bytes.hex()
+
+        # # 14. total stake
+        # total_stake_base_slot = 6
+        # total_stake_base_slot_bytes = to_bytes(total_stake_base_slot).rjust(32, b'\0')
+        # total_stake = total_domains * stake
+        # total_stake_bytes = int_to_big_endian(total_stake).rjust(32, b'\0')
+        # slots["0x" + total_stake_base_slot_bytes.hex()] = "0x" + total_stake_bytes.hex()
 
         return slots
 
     def _generate_chaincfg_slots(self, configs: Dict[str, str]):
         slots = {}
 
-        config_cps_base_slot = 1
+        config_cps_base_slot = 0
         config_cps_base_slot_bytes = int_to_big_endian(config_cps_base_slot).rjust(32, b'\0')
 
         # 1. put `configCps` length in `config_cps_base_slot`
@@ -405,12 +413,15 @@ class Generator(object):
             slot_index += 1
 
         
-        # 5. put stakingAddress
-        config_root_sys_base_slot = 0
+        # 5. put init rootSys
+        config_root_sys_base_slot = 1
         config_root_sys_base_slot_bytes = int_to_big_endian(config_root_sys_base_slot).rjust(32, b'\0')
-        sys_staking_addr = '4100000000000000000000000000000000000000'
-        sys_staking_addr_bytes = bytes.fromhex(sys_staking_addr).rjust(32, b'\0')
-        slots["0x" + config_root_sys_base_slot_bytes.hex()] = "0x" + sys_staking_addr_bytes.hex()
+        root_sys_addr = self._deploy.admin_addr
+        if root_sys_addr.startswith('0x'):
+            root_sys_addr = root_sys_addr[2:]  # Remove the '0x' prefix
+
+        root_sys_addr_slot_value = root_sys_addr.rjust(64, '0')
+        slots["0x" + config_root_sys_base_slot_bytes.hex()] = "0x" + root_sys_addr_slot_value
 
         return slots
 
@@ -430,142 +441,6 @@ class Generator(object):
         configs["0x" + root_sys_base_slot_bytes.hex()] = admin_slot_value
 
         return configs
-
-    def _generate_access_control_admin(self, configs: Dict[str, str], account: Optional[str]):
-        """
-        struct RoleData {
-        mapping(address account => bool) hasRole;
-        bytes32 adminRole;
-        }
-
-        bytes32 public constant DEFAULT_ADMIN_ROLE = 0x00;
-
-
-        /// @custom:storage-location erc7201:openzeppelin.storage.AccessControl
-        struct AccessControlStorage {
-            mapping(bytes32 role => RoleData) _roles;
-        }
-
-        // keccak256(abi.encode(uint256(keccak256("openzeppelin.storage.AccessControl")) - 1)) & ~bytes32(uint256(0xff))
-        bytes32 private constant AccessControlStorageLocation = 0x02dd7bc7dec4dceedda775e58dd541e08a116c6c53815c0bd028192f7b626800;
-
-        function _getAccessControlStorage() private pure returns (AccessControlStorage storage $) {
-            assembly {
-                .slot := AccessControlStorageLocation
-            }
-        }
-
-        function _grantRole(bytes32 role, address account) internal virtual returns (bool) {
-            AccessControlStorage storage $ = _getAccessControlStorage();
-            if (!hasRole(role, account)) {
-                $._roles[role].hasRole[account] = true;
-                emit RoleGranted(role, account, _msgSender());
-                return true;
-            } else {
-                return false;
-            }
-        }
-        """
-
-        # either use admin_addr defined in `deploy.light.json`, or use the params
-        if account is None:
-            admin_addr = self._deploy.admin_addr
-        else:
-            admin_addr = account
-
-        if admin_addr.startswith('0x'):
-            admin_addr = admin_addr[2:]  # Remove the '0x' prefix
-
-
-        access_control_storage_base_slot = "02dd7bc7dec4dceedda775e58dd541e08a116c6c53815c0bd028192f7b626800"
-        access_control_storage_base_slot_bytes = bytes.fromhex(access_control_storage_base_slot).rjust(32, b'\0')
-        default_admin_role_index = 0
-        default_admin_role_index_bytes = int_to_big_endian(default_admin_role_index).rjust(32, b'\0')
-        # now we have `RoleData` slot, i.e. `hasRole` field
-        access_control_storage_default_admin_role_data_slot = keccak(default_admin_role_index_bytes + access_control_storage_base_slot_bytes)
-
-        # get the account slot in `RoleData.hasRole` 
-        admin_addr_bytes = bytes.fromhex(admin_addr).rjust(32, b'\0')
-        admin_addr_slot = keccak(admin_addr_bytes + access_control_storage_default_admin_role_data_slot)
-        # set the account role to true
-        admin_addr_slot_value = 0x1
-        admin_addr_slot_value_bytes = int_to_big_endian(admin_addr_slot_value).rjust(32, b'\0')
-
-        # add to configs 
-        configs["0x" + admin_addr_slot.hex()] = "0x" + admin_addr_slot_value_bytes.hex()
-
-        # set the `adminRole` to `DEFAULT_ADMIN_ROLE` in `RoleData`
-        if account is None: # we set system admin addr as `adminRole`
-            admin_role_base_slot = 1
-            admin_role_slot = self._bytes_add_num(access_control_storage_default_admin_role_data_slot, admin_role_base_slot)
-            default_admin_role = 0x00
-            admin_role_slot_value = int_to_big_endian(default_admin_role).rjust(32, b'\0')
-            configs["0x" + admin_role_slot.hex()] = "0x" + admin_role_slot_value.hex()
-
-
-
-    def _generate_disable_upgradeable_contract_initializers(self, configs: Dict[str, str]):
-        """
-        struct InitializableStorage {
-            /**
-             * @dev Indicates that the contract has been initialized.
-             */
-            uint64 _initialized;
-            /**
-             * @dev Indicates that the contract is in the process of being initialized.
-             */
-            bool _initializing;
-        }
-
-        // keccak256(abi.encode(uint256(keccak256("openzeppelin.storage.Initializable")) - 1)) & ~bytes32(uint256(0xff))
-        bytes32 private constant INITIALIZABLE_STORAGE = 0xf0c57e16840df040f15088dc2f81fe391c3923bec73e23a9662efc9c229c6a00;
-
-        function _disableInitializers() internal virtual {
-            // solhint-disable-next-line var-name-mixedcase
-            InitializableStorage storage $ = _getInitializableStorage();
-
-            if ($._initializing) {
-                revert InvalidInitialization();
-            }
-            if ($._initialized != type(uint64).max) {
-                $._initialized = type(uint64).max;
-                emit Initialized(type(uint64).max);
-            }
-        }
-        function _getInitializableStorage() private pure returns (InitializableStorage storage $) {
-            bytes32 slot = _initializableStorageSlot();
-            assembly {
-                $.slot := slot
-            }
-        }
-
-        function _initializableStorageSlot() internal pure virtual returns (bytes32) {
-            return INITIALIZABLE_STORAGE;
-        }
-        
-        """
-
-        initializable_storage_base_slot = "f0c57e16840df040f15088dc2f81fe391c3923bec73e23a9662efc9c229c6a00"
-        initializable_storage_base_slot_bytes = bytes.fromhex(initializable_storage_base_slot).rjust(32, b'\0')
-
-        # the `_initialized` and `_initializing` are in the same slot, so we set the value directly here
-        # set `_initialized`
-        initializable_storage_base_slot_value_of_initialized = 0xffffffffffffffff # uint64_max
-        initialized_value_bytes_len = len(int_to_big_endian(initializable_storage_base_slot_value_of_initialized))
-        initializable_storage_base_slot_value_of_initialized_bytes = int_to_big_endian(initializable_storage_base_slot_value_of_initialized).rjust(32, b'\0')
-
-        # set `_initializing`
-        initializable_storage_base_slot_value_of_initializing = 0x0 # false
-        # left pad
-        left_pad_length = 32 - initialized_value_bytes_len
-        initializable_storage_base_slot_value_of_initializing_bytes = int_to_big_endian(initializable_storage_base_slot_value_of_initializing).rjust(left_pad_length, b'\0')
-        # right pad. Actually when `_initializing` is false, the value is all-zeros
-        initializable_storage_base_slot_value_of_initializing_bytes = initializable_storage_base_slot_value_of_initializing_bytes.ljust(32, b'\0')
-        
-        # bitwise merge `_initialized` and `_initializing`
-        initializable_storage_base_slot_value = self._bytes_bitwise_add(initializable_storage_base_slot_value_of_initialized_bytes, initializable_storage_base_slot_value_of_initializing_bytes)
-
-        configs["0x" + initializable_storage_base_slot_bytes.hex()] = "0x" + initializable_storage_base_slot_value.hex()
 
     def _generate_domain(self, domain_label: str, dinfo: DomainSummary) -> Domain:
         domain = Domain()
@@ -589,6 +464,10 @@ class Generator(object):
             domain.use_generated_keys = True
             domain.key_passwd = dinfo.key_passwd if dinfo.key_passwd else default_keypasswd
             logs.debug(f'{domain.domain_label} key passwd is {domain.key_passwd}')
+            domain.portal_ssl_pass = dinfo.portal_ssl_pass if dinfo.portal_ssl_pass else default_keypasswd
+            logs.debug(f'{domain.domain_label} portal_ssl_pass is {domain.portal_ssl_pass}')
+
+        domain.enable_setkey_env = dinfo.enable_setkey_env
 
         domain.deploy_dir = dinfo.deploy_dir if dinfo.deploy_dir else join(
             self._deploy.deploy_root, domain_label)
@@ -601,32 +480,36 @@ class Generator(object):
         stabilizing_key_dir = self._build_file(
                 f'scripts/resources/domain_keys/{bls_keytype}/{domain_label}')
 
+        # 生成的Key与默认Key 命名隔离
+        key_file = 'generate.key' if domain.use_generated_keys else 'new.key'
+        pkey_file = 'generate.pub' if domain.use_generated_keys else 'new.pub'
+        
         if domain.use_generated_keys:
             # generate domain key
-            self._generate_prikey(self._deploy.domain_key_type, key_dir, key_passwd=domain.key_passwd)
+            self._generate_prikey(self._deploy.domain_key_type, key_dir, key_file, key_passwd=domain.key_passwd)
             # generate bls key
-            self._generate_prikey(bls_keytype, stabilizing_key_dir)
+            self._generate_prikey(bls_keytype, stabilizing_key_dir, key_file)
 
         else:
-            if domain_label in const.PREDEFINED_DOMAINS or exists(join(key_dir, 'new.key')) or exists(join(key_dir, 'new.pub')):
+            if domain_label in const.PREDEFINED_DOMAINS or exists(join(key_dir, key_file)) or exists(join(key_dir, pkey_file)):
                 logs.info(
-                    f'use predefined domain key, or exsited key: {key_dir}/new.key')
+                    f'use predefined domain key, or exsited key: {key_dir}/{key_file}')
             else:
                 logs.info(
                     f'no predefined domain key for {domain_label}, create new key')
                 local.run(f'mkdir -p {key_dir}')
                 local.run(
-                    f"openssl ecparam -name prime256v1 -genkey | openssl pkcs8 -topk8 -passout pass:123abc -out {join(key_dir, 'new.key')}")
+                    f"openssl ecparam -name prime256v1 -genkey | openssl pkcs8 -topk8 -passout pass:123abc -out {join(key_dir, key_file)}")
             stabilizing_key_dir = self._build_file(
                 f'scripts/resources/domain_keys/bls12381/{domain_label}')
-            if not (exists(join(stabilizing_key_dir, 'new.key')) or exists(join(stabilizing_key_dir, 'new.pub'))):
+            if not (exists(join(stabilizing_key_dir, key_file)) or exists(join(stabilizing_key_dir, pkey_file))):
                 logs.fatal(
-                    f'failed to use predefined stabilizing key: {stabilizing_key_dir}/new.key')
+                    f'failed to use predefined stabilizing key: {stabilizing_key_dir}/{pkey_file}')
         domain.secret.domain.files = {
-            'key': f'{key_dir}/new.key',
-            'key_pub': f'{key_dir}/new.pub',
-            'stabilizing_key': f'{stabilizing_key_dir}/new.key',
-            'stabilizing_pk': f'{stabilizing_key_dir}/new.pub'
+            'key': f'{key_dir}/{key_file}',
+            'key_pub': f'{key_dir}/{pkey_file}',
+            'stabilizing_key': f'{stabilizing_key_dir}/{key_file}',
+            'stabilizing_pk': f'{stabilizing_key_dir}/{pkey_file}'
         }
         key_type = self._deploy.client_key_type
         domain.secret.client.files = {
@@ -672,7 +555,6 @@ class Generator(object):
                 instance.dir = join(domain.deploy_dir, inst_name)
                 instance.service = inst_name.rstrip(string.digits)
                 instance.ip = desc.deploy_ip
-                instance.host = desc.host
                 idx_suffix = inst_name.lstrip(string.ascii_letters)
                 idx = int(idx_suffix) if idx_suffix else 0
                 rpc_port = self._start_port(start_port, instance.service) + idx
@@ -764,7 +646,6 @@ class Generator(object):
                         instance.env['STORAGE_ID'] = '0'
                         instance.env['STORAGE_MSU'] = '0-255'
                         instance.env['TXPOOL_PARTITION_LIST'] = '0-255'
-
                 domain.cluster[inst_name] = instance
         for instance in domain.cluster.values():
             if instance.service == const.SERVICE_ETCD:
@@ -835,20 +716,6 @@ class Generator(object):
         total_stake_bytes = int_to_big_endian(total_stake_in_wei).rjust(32, b'\0')
         storage_slot_kvs["0x" + total_stake_base_slot_bytes.hex()] = "0x" + total_stake_bytes.hex()
 
-        # slot 7 config addr
-        cfg_base_slot = 7
-        cfg_base_slot_bytes = to_bytes(cfg_base_slot).rjust(32, b'\0')
-        cfg_addr = "3100000000000000000000000000000000000000"
-        cfg_addr_bytes = bytes.fromhex(cfg_addr).rjust(32, b'\0')
-        storage_slot_kvs["0x" + cfg_base_slot_bytes.hex()] = "0x" + cfg_addr_bytes.hex()
-
-        # add access_control and disable initializers
-        intrinsic_tx_sender = "1111111111111111111111111111111111111111"
-        self._generate_access_control_admin(storage_slot_kvs, self._deploy.admin_addr) # default admin
-        self._generate_access_control_admin(storage_slot_kvs, intrinsic_tx_sender) # intrinsic sender
-        self._generate_disable_upgradeable_contract_initializers(storage_slot_kvs)
-
-
         genesis_data = utils.load_json(self._deploy.genesis_tpl)
         genesis_data['domains'] = genesis_domains
         sys_staking_addr = '4100000000000000000000000000000000000000'
@@ -870,13 +737,6 @@ class Generator(object):
         # generate chaincfg storage slot
         sys_chaincfg_addr = '3100000000000000000000000000000000000000'
         storage_slot_kvs = self._generate_chaincfg_slots(genesis_data['configs'])
-
-        # add access_control and disable initializers
-        intrinsic_tx_sender = "1111111111111111111111111111111111111111"
-        self._generate_access_control_admin(storage_slot_kvs, self._deploy.admin_addr) # default admin
-        self._generate_access_control_admin(storage_slot_kvs, intrinsic_tx_sender) # intrinsic sender
-        self._generate_disable_upgradeable_contract_initializers(storage_slot_kvs)
-
         # 非proxy代理部署
         if 'storage' not in genesis_data['alloc'][sys_chaincfg_addr]:
             chaincfg_storage_slot_kvs = storage_slot_kvs
@@ -888,38 +748,9 @@ class Generator(object):
 
         # generate rule mng storage slot
         sys_rule_mng_addr = '2100000000000000000000000000000000000000'
-        storage_slot_kvs = genesis_data['alloc'][sys_rule_mng_addr]['storage']
-        intrinsic_tx_sender = "1111111111111111111111111111111111111111"
-        self._generate_access_control_admin(storage_slot_kvs, self._deploy.admin_addr) # default admin
-        self._generate_access_control_admin(storage_slot_kvs, intrinsic_tx_sender) # intrinsic sender
-        self._generate_disable_upgradeable_contract_initializers(storage_slot_kvs)
-
+        storage_slot_kvs = self._generate_rule_mng_slots(genesis_data['alloc'][sys_rule_mng_addr]['storage'])
         genesis_data['alloc'][sys_rule_mng_addr]['storage'] = storage_slot_kvs
 
-        # write admin addr
-        root_sys_addr = self._deploy.admin_addr
-        if root_sys_addr.startswith('0x'):
-            root_sys_addr = root_sys_addr[2:]  # Remove the '0x' prefix
-        root_sys_slot = {}
-        root_sys_slot['balance'] = '0xc097ce7bc90715b34b9f1000000000'
-        root_sys_slot['nonce'] = '0x0'
-        genesis_data['alloc'][root_sys_addr] = root_sys_slot
-
-        if need_genesis:
-            with open(self._abspath(self._genesis_file), 'w') as fh:
-                json.dump(genesis_data, fh, indent=2)
-            # 使用 admin_addr proxy_admin_addr 替换genesis.{self._deploy.chain_id}.conf中的默认值
-            conf_admin_addr = self._deploy.admin_addr[2:] if self._deploy.admin_addr.startswith("0x") else self._deploy.admin_addr
-            conf_proxy_admin_addr = self._deploy.proxy_admin_addr[2:] if self._deploy.proxy_admin_addr.startswith("0x") else self._deploy.proxy_admin_addr
-            default_admin_addr = "2cc298bdee7cfeac9b49f9659e2f3d637e149696"
-            default_proxy_admin_addr = "0278872d3f68b15156e486da1551bcd34493220d"
-            # 替换分隔符为 |
-            local.run(
-                f'sed -i "s|{default_admin_addr}|{conf_admin_addr}|" {self._abspath(self._genesis_file)}'
-            )
-            local.run(
-                f'sed -i "s|{default_proxy_admin_addr}|{conf_proxy_admin_addr}|" {self._abspath(self._genesis_file)}'
-            )
 
         for domain_label, domain in all_domain.items():
             domain_data = DomainSchema().dump(domain)
