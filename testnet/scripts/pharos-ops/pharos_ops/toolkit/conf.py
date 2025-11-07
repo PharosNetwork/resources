@@ -516,12 +516,12 @@ class Generator(object):
             'stabilizing_key': f'{stabilizing_key_dir}/{key_file}',
             'stabilizing_pk': f'{stabilizing_key_dir}/{pkey_file}'
         }
-        key_type = self._deploy.client_key_type
-        domain.secret.client.files = {
-            'ca_cert': f'../conf/resources/portal/{key_type}/client/ca.crt',
-            'cert': f'../conf/resources/portal/{key_type}/client/client.crt',
-            'key': f'../conf/resources/portal/{key_type}/client/client.key'
-        }
+        # key_type = self._deploy.client_key_type
+        # domain.secret.client.files = {
+        #     'ca_cert': f'../conf/resources/portal/{key_type}/client/ca.crt',
+        #     'cert': f'../conf/resources/portal/{key_type}/client/client.crt',
+        #     'key': f'../conf/resources/portal/{key_type}/client/client.key'
+        # }
         # genesis.{chain_id}.conf 后面会生成, 这里关联上相对路径
         # domain.genesis_conf = self._genesis_file
         domain.genesis_conf = "../genesis.conf"

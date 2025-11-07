@@ -82,7 +82,7 @@ class Deploy(object):
     genesis_tpl: str = field(default='../conf/genesis.tpl.conf', metadata={'required': True})
     mygrid: MyGridConfig = field(default_factory=MyGridConfig, metadata={'required': True})
     domain_key_type: str = field(default='', metadata={'required': True})
-    client_key_type: str = field(default='', metadata={'required': True})
+    client_key_type: str = field(default='', metadata={'required': False})
     use_generated_keys : bool = field(default=False, metadata={'required': False})
     use_latest_version: bool = field(default=False, metadata={'required': False})
     enable_dora : bool = field(default=False, metadata={'required': False})

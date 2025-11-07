@@ -198,15 +198,15 @@ class Composer(object):
             self.domain_secret.files[
                 'stabilizing_key'] = f'../scripts/resources/domain_keys/bls12381/{self.domain_label}/{key_file}'
 
-        key_type = self.client_secret.key_type
-        if self.client_secret.files.get('ca_cert') is None:
-            self.client_secret.files[
-                'ca_cert'] = f'../conf/resources/portal/{key_type}/client/ca.crt'
-        if self.client_secret.files.get('cert') is None:
-            self.client_secret.files[
-                'cert'] = f'../conf/resources/portal/{key_type}/client/client.crt'
-        if self.client_secret.files.get('key') is None:
-            self.client_secret.files['key'] = f'../conf/resources/portal/{key_type}/client/client.key'
+        # key_type = self.client_secret.key_type
+        # if self.client_secret.files.get('ca_cert') is None:
+        #     self.client_secret.files[
+        #         'ca_cert'] = f'../conf/resources/portal/{key_type}/client/ca.crt'
+        # if self.client_secret.files.get('cert') is None:
+        #     self.client_secret.files[
+        #         'cert'] = f'../conf/resources/portal/{key_type}/client/client.crt'
+        # if self.client_secret.files.get('key') is None:
+        #     self.client_secret.files['key'] = f'../conf/resources/portal/{key_type}/client/client.key'
 
         # 所有关联文件转为绝对路径
         self.domain_secret.files['key'] = self._abspath(
@@ -215,12 +215,12 @@ class Composer(object):
             self.domain_secret.files['key_pub'])
         self.domain_secret.files['stabilizing_key'] = self._abspath(
             self.domain_secret.files['stabilizing_key'])
-        self.client_secret.files['ca_cert'] = self._abspath(
-            self.client_secret.files['ca_cert'])
-        self.client_secret.files['cert'] = self._abspath(
-            self.client_secret.files['cert'])
-        self.client_secret.files['key'] = self._abspath(
-            self.client_secret.files['key'])
+        # self.client_secret.files['ca_cert'] = self._abspath(
+        #     self.client_secret.files['ca_cert'])
+        # self.client_secret.files['cert'] = self._abspath(
+        #     self.client_secret.files['cert'])
+        # self.client_secret.files['key'] = self._abspath(
+        #     self.client_secret.files['key'])
         self._domain.genesis_conf = self._abspath(self._domain.genesis_conf)
 
         # 用于生成etcd token, 所有etcd实例共享
@@ -833,13 +833,13 @@ class Composer(object):
         local.sync(self._build_file('bin', const.SVC_META_TOOL), cli_bin_dir, '-avL')
         local.sync(self._domain.genesis_conf, cli_conf_dir)
 
-        local.sync(self._build_file(
-            'conf', 'resources/poke/node_config.json'), cli_bin_dir)
-        key_type = self.client_secret.key_type
-        local.sync(self._build_file(
-            'conf', f'resources/poke/{key_type}/admin.key'), cli_bin_dir)
-        local.sync(self._build_file(
-            'conf', f'resources/poke/{key_type}/client'), cli_bin_dir)
+        # local.sync(self._build_file(
+        #     'conf', 'resources/poke/node_config.json'), cli_bin_dir)
+        # key_type = self.client_secret.key_type
+        # local.sync(self._build_file(
+        #     'conf', f'resources/poke/{key_type}/admin.key'), cli_bin_dir)
+        # local.sync(self._build_file(
+        #     'conf', f'resources/poke/{key_type}/client'), cli_bin_dir)
         local.sync(self._build_file('conf', 'artifacts'),
                    self.local_client_dir)
 
@@ -856,10 +856,10 @@ class Composer(object):
         #     local.sync(self._build_file('conf/perf.conf'), cli_bin_dir)
 
         # 修改node_config.json
-        node_conf_file = join(cli_bin_dir, 'node_config.json')
-        node_conf = utils.load_json(node_conf_file)
-        node_conf['node']['endpoints'] = self._client_endpoints
-        utils.dump_json(node_conf_file, node_conf)
+        # node_conf_file = join(cli_bin_dir, 'node_config.json')
+        # node_conf = utils.load_json(node_conf_file)
+        # node_conf['node']['endpoints'] = self._client_endpoints
+        # utils.dump_json(node_conf_file, node_conf)
         # dump svc.conf 用于pharos_cli
         utils.dump_json(join(cli_bin_dir, const.MYGRID_GENESIS_CONFIG_FILENAME), self._mygrid_client_conf)
         # dump meta_service.conf 用于meta_tool，存储相关子命令
@@ -895,11 +895,11 @@ class Composer(object):
             conn.run(
                 f"cd {cli_bin_dir}; ./meta_tool -conf {const.META_SERVICE_CONFIG_FILENAME} -set -key={key} -value='{load_file(file)}'")
         confs = {
-            f'/{self.chain_id}/portal/certs': {
-                'ca.crt': f'{to_base64(self.client_secret.files["ca_cert"])}',
-                'server.crt': f'{to_base64(self.client_secret.files["cert"])}',
-                'server.key': f'{to_base64(self.client_secret.files["key"])}',
-            },
+            # f'/{self.chain_id}/portal/certs': {
+            #     'ca.crt': f'{to_base64(self.client_secret.files["ca_cert"])}',
+            #     'server.crt': f'{to_base64(self.client_secret.files["cert"])}',
+            #     'server.key': f'{to_base64(self.client_secret.files["key"])}',
+            # },
             f'/{self.chain_id}/secrets/domain.key': {
                 'domain_key': f'{to_base64(self.domain_secret.files["key"])}',
                 'stabilizing_key': f'{to_base64(self.domain_secret.files["stabilizing_key"])}',

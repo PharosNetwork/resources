@@ -198,15 +198,15 @@ class Composer(object):
             self.domain_secret.files[
                 'stabilizing_key'] = f'../scripts/resources/domain_keys/bls12381/{self.domain_label}/{key_file}'
 
-        key_type = self.client_secret.key_type
-        if self.client_secret.files.get('ca_cert') is None:
-            self.client_secret.files[
-                'ca_cert'] = f'../conf/resources/portal/{key_type}/client/ca.crt'
-        if self.client_secret.files.get('cert') is None:
-            self.client_secret.files[
-                'cert'] = f'../conf/resources/portal/{key_type}/client/client.crt'
-        if self.client_secret.files.get('key') is None:
-            self.client_secret.files['key'] = f'../conf/resources/portal/{key_type}/client/client.key'
+        # key_type = self.client_secret.key_type
+        # if self.client_secret.files.get('ca_cert') is None:
+        #     self.client_secret.files[
+        #         'ca_cert'] = f'../conf/resources/portal/{key_type}/client/ca.crt'
+        # if self.client_secret.files.get('cert') is None:
+        #     self.client_secret.files[
+        #         'cert'] = f'../conf/resources/portal/{key_type}/client/client.crt'
+        # if self.client_secret.files.get('key') is None:
+        #     self.client_secret.files['key'] = f'../conf/resources/portal/{key_type}/client/client.key'
 
         # 所有关联文件转为绝对路径
         self.domain_secret.files['key'] = self._abspath(
@@ -833,13 +833,13 @@ class Composer(object):
         local.sync(self._build_file('bin', const.SVC_META_TOOL), cli_bin_dir, '-avL')
         local.sync(self._domain.genesis_conf, cli_conf_dir)
 
-        local.sync(self._build_file(
-            'conf', 'resources/poke/node_config.json'), cli_bin_dir)
-        key_type = self.client_secret.key_type
-        local.sync(self._build_file(
-            'conf', f'resources/poke/{key_type}/admin.key'), cli_bin_dir)
-        local.sync(self._build_file(
-            'conf', f'resources/poke/{key_type}/client'), cli_bin_dir)
+        # local.sync(self._build_file(
+        #     'conf', 'resources/poke/node_config.json'), cli_bin_dir)
+        # key_type = self.client_secret.key_type
+        # local.sync(self._build_file(
+        #     'conf', f'resources/poke/{key_type}/admin.key'), cli_bin_dir)
+        # local.sync(self._build_file(
+        #     'conf', f'resources/poke/{key_type}/client'), cli_bin_dir)
         local.sync(self._build_file('conf', 'artifacts'),
                    self.local_client_dir)
 

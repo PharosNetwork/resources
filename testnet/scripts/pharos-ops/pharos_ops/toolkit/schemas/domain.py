@@ -15,7 +15,7 @@ class SecretFiles(object):
 @dataclass
 class Secret(object):
     domain: SecretFiles = field(default_factory=SecretFiles, metadata={'required': True})
-    client: SecretFiles = field(default_factory=SecretFiles, metadata={'required': True})
+    client: SecretFiles = field(default_factory=SecretFiles, metadata={'required': False})
 
     class Meta:
         ordered: bool = True
