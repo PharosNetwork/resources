@@ -735,6 +735,7 @@ class Composer(object):
 
             mygrid_env_json_file = join(instance.dir, f'conf/{const.MYGRID_ENV_JSON_FILENAME}')
             self._dump_json(mygrid_env_json_file, self._mygrid_env_json, conn=conn)
+            self._dump_json(join(instance.dir,f"../client/conf/{const.MYGRID_ENV_JSON_FILENAME}"),self._mygrid_env_json, conn=conn)
 
             # monitor conf
             monitor_json_file = join(instance.dir, f'conf/{const.MONITOR_CONF_JSON_FILENAME}')
