@@ -329,6 +329,7 @@ class Composer(object):
 
         if self._domain.mygrid.env.enable_adaptive:
             self._mygrid_env_json["mygrid_env"]["meta_store_disk"] = self.deploy_top_dir
+            self._mygrid_env_json["mygrid_env"]["flat_kvdb_disk"] = self.deploy_top_dir
             self._mygrid_env_json["mygrid_env"]["project_data_path"] = self.meta_svc_dir
 
             # ultra, TODO......
@@ -780,7 +781,7 @@ class Composer(object):
         # deploy instances conf
         if deploy_conf:
             self.deploy_host_conf(conn, service)
-                
+
         # 非自适应时，创建meta存放目录
         if not self._domain.mygrid.env.enable_adaptive:
             self._make_workspace(self._mygrid_env_json["mygrid_env"]["meta_store_disk"], self._mygrid_env_json["mygrid_env"]["project_data_path"], conn=conn)
@@ -1998,7 +1999,7 @@ class Composer(object):
                     self.stop_instance(instance, conn)
                 logs.info(
                     f'stop service {service} on {conn.host} immediately')
-            
+
     def stop_service(self, service, force=False):
         logs.info(f'stop service {service} force {force}')
 

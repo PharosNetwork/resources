@@ -329,6 +329,7 @@ class Composer(object):
 
         if self._domain.mygrid.env.enable_adaptive:
             self._mygrid_env_json["mygrid_env"]["meta_store_disk"] = self.deploy_top_dir
+            self._mygrid_env_json["mygrid_env"]["flat_kvdb_disk"] = self.deploy_top_dir
             self._mygrid_env_json["mygrid_env"]["project_data_path"] = self.meta_svc_dir
 
             # ultra, TODO......
