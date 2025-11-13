@@ -59,8 +59,8 @@
         "letus_merkle_trie_l0_delta_page_ckp": 512,
         "letus_merkle_trie_l1_base_page_ckp": 256,
         "letus_merkle_trie_l1_delta_page_ckp": 128,
-        "letus_merkle_trie_ln_base_page_ckp": 2,
-        "letus_merkle_trie_ln_delta_page_ckp": 1
+        "letus_merkle_trie_ln_base_page_ckp": 8,
+        "letus_merkle_trie_ln_delta_page_ckp": 4
       }
     }
   }
