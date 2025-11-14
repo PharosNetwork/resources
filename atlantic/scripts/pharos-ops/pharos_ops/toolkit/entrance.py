@@ -36,12 +36,12 @@ def catch_exception(fn):
 
 
 @catch_exception
-def generate(deploy_file: str, need_genesis: bool = False):
+def generate(deploy_file: str, need_genesis: bool = False, key_passwd: str = ""):
     """
     Command: pharos-ops configure
     """
 
-    generator = conf.Generator(deploy_file)
+    generator = conf.Generator(deploy_file, key_passwd)
     generator.run(need_genesis)
 
 @catch_exception
@@ -275,14 +275,14 @@ def restart(domain_files: str, service: str, extra_storage_args: str):
 
 
 @catch_exception
-def stop(domain_files: str, service: str):
+def stop(domain_files: str, service: str, force=False):
     """
     Command: pharos-ops start
     """
     # TODO 多domain_files部署的时候，确保所有domain_files的chain_id/genesis.conf一致, domain_label不冲突
     for domain_file in domain_files:
         composer = core.Composer(domain_file)
-        composer.stop(service)
+        composer.stop(service, force)
 
 
 @catch_exception

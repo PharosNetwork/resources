@@ -54,6 +54,7 @@ class DomainSummary(object):
     deploy_dir: str = field(default='', metadata={'required': False})
     domain_role: int = field(default=0, metadata={'required': False})
     key_passwd : str = field(default='', metadata={'required': False})
+    portal_ssl_pass : str = field(default='', metadata={'required': False})
     domain_port: int = field(default=19000, metadata={'required': True})
     client_tcp_port: int = field(default=18000, metadata={'required': True})
     client_ws_port: int = field(default=0, metadata={'required': False})
@@ -61,6 +62,7 @@ class DomainSummary(object):
     client_http_port: int = field(default=0, metadata={'required': False})
     cluster: List[Node] = field(default_factory=list, metadata={'required': True})
     initial_stake_in_gwei: int = field(default=1000000000, metadata={'required': False})
+    enable_setkey_env: bool = field(default=True, metadata={'required': False}) # 设置pass env开关，默认打开
 
     class Meta:
         ordered: bool = True
@@ -80,7 +82,7 @@ class Deploy(object):
     genesis_tpl: str = field(default='../conf/genesis.tpl.conf', metadata={'required': True})
     mygrid: MyGridConfig = field(default_factory=MyGridConfig, metadata={'required': True})
     domain_key_type: str = field(default='', metadata={'required': True})
-    client_key_type: str = field(default='', metadata={'required': True})
+    client_key_type: str = field(default='', metadata={'required': False})
     use_generated_keys : bool = field(default=False, metadata={'required': False})
     use_latest_version: bool = field(default=False, metadata={'required': False})
     enable_dora : bool = field(default=False, metadata={'required': False})

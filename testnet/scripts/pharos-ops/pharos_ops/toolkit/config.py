@@ -30,22 +30,22 @@ class DomainSecretConfig(object):
         ordered: bool = True
 
 
-@dataclass
-class ClientSecretConfig(object):
-    ca_cert_file: str = field(default='', metadata={'required': True, 'validate': validate.NonEmpty()})
-    cert_file: str = field(default='', metadata={'required': True, 'validate': validate.NonEmpty()})
-    key_file: str = field(default='', metadata={'required': True, 'validate': validate.NonEmpty()})
-    key_type: str = field(default='', metadata={'required': True, 'validate': validate.KeyType()})
-    key_passwd: str = field(default='123abc', metadata={'required': False})
+# @dataclass
+# class ClientSecretConfig(object):
+#     ca_cert_file: str = field(default='', metadata={'required': True, 'validate': validate.NonEmpty()})
+#     cert_file: str = field(default='', metadata={'required': True, 'validate': validate.NonEmpty()})
+#     key_file: str = field(default='', metadata={'required': True, 'validate': validate.NonEmpty()})
+#     key_type: str = field(default='', metadata={'required': True, 'validate': validate.KeyType()})
+#     key_passwd: str = field(default='123abc', metadata={'required': False})
 
-    class Meta:
-        ordered: bool = True
+#     class Meta:
+#         ordered: bool = True
 
 
 @dataclass
 class SecretConfig(object):
     domain: DomainSecretConfig = field(default_factory=DomainSecretConfig, metadata={'required': True})
-    client: ClientSecretConfig = field(default_factory=ClientSecretConfig, metadata={'required': True})
+    # client: ClientSecretConfig = field(default_factory=ClientSecretConfig, metadata={'required': False})
 
     class Meta:
         ordered: bool = True
