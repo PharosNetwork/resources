@@ -49,7 +49,7 @@
         "mygrid_client_history_kv_full_cache": false,
         "letus_merkle_enable_trie_logical_page_release": true,
         "letus_batch_update_logical_page_size": 50000,
-        "letus_prune_compaction_max_concurrent_count": 0,
+        "letus_prune_compaction_max_concurrent_count": 8,
         "letus_max_file_count_for_prune_compaction": 10,
         "letus_slow_index_file_read": 100000,
         "letus_io_throttle_rw_bps": 314572800,
@@ -59,8 +59,8 @@
         "letus_merkle_trie_l0_delta_page_ckp": 512,
         "letus_merkle_trie_l1_base_page_ckp": 256,
         "letus_merkle_trie_l1_delta_page_ckp": 128,
-        "letus_merkle_trie_ln_base_page_ckp": 2,
-        "letus_merkle_trie_ln_delta_page_ckp": 1
+        "letus_merkle_trie_ln_base_page_ckp": 8,
+        "letus_merkle_trie_ln_delta_page_ckp": 4
       }
     }
   }
