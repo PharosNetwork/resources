@@ -15,7 +15,7 @@ class SecretFiles(object):
 @dataclass
 class Secret(object):
     domain: SecretFiles = field(default_factory=SecretFiles, metadata={'required': True})
-    client: SecretFiles = field(default_factory=SecretFiles, metadata={'required': False})
+    client: SecretFiles = field(default_factory=SecretFiles, metadata={'required': True})
 
     class Meta:
         ordered: bool = True
@@ -52,6 +52,7 @@ class Instance(object):
     service: str = field(default='', metadata={'required': True})
     name: str = field(default='', metadata={'required': False})
     ip: str = field(default='', metadata={'required': True})
+    host: str = field(default='', metadata={'required': True})
     dir: str = field(default='', metadata={'required': False})      # 默认为$deploy_dir/$instance_name, 支持分别指定
     args: List[str] = field(default_factory=list, metadata={'required': False})
     env: Dict[str, str] = field(default_factory=dict, metadata={'required': False})
@@ -80,8 +81,6 @@ class Domain(object):
     use_generated_keys : bool = field(default=False, metadata={'required': False})
     enable_dora : bool = field(default=False, metadata={'required': False})
     key_passwd : str = field(default='123abc', metadata={'required': False})
-    portal_ssl_pass : str = field(default='123abc', metadata={'required': False})
-    enable_setkey_env: bool = field(default=True, metadata={'required': False}) # 设置pass env开关，默认打开    
     docker: Docker = field(default_factory=Docker, metadata={'required': True})
     common: Common = field(default_factory=Common, metadata={'required': False})
     cluster: Dict[str, Instance] = field(default_factory=dict, metadata={'required': True})

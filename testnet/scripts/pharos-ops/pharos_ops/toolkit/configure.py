@@ -381,11 +381,11 @@ class ConfigManager(object):
         logs.info('get meta compose')
 
         meta = {
-            # '/{}/portal/certs'.format(self.chain_id): {
-            #     'ca.crt': '{$secret.client.ca_cert_file}',
-            #     'server.crt': '{$secret.client.cert_file}',
-            #     'server.key': '{$secret.client.key_file}'
-            # },
+            '/{}/portal/certs'.format(self.chain_id): {
+                'ca.crt': '{$secret.client.ca_cert_file}',
+                'server.crt': '{$secret.client.cert_file}',
+                'server.key': '{$secret.client.key_file}'
+            },
             '/{}/secrets/domain.key'.format(self.chain_id): {
                 'domain_key': '{$secret.domain.key_file}'
             },

@@ -19,6 +19,7 @@ from dataclasses import dataclass, field
 class ServiceCompose(object):
     service: str = field(default='', metadata={'required': True})
     ip: str = field(default='', metadata={'required': True})
+    host: str = field(default='', metadata={'required': True})
     # deploy_dir: str = field(default='', metadata={'required': False})
     conf_file: str = field(default='', metadata={'required': False})
     conf: Dict[str, Optional[Any]] = field(default=None, metadata={'required': False})
