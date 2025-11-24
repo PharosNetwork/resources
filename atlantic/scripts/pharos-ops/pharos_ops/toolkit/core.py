@@ -215,12 +215,12 @@ class Composer(object):
             self.domain_secret.files['key_pub'])
         self.domain_secret.files['stabilizing_key'] = self._abspath(
             self.domain_secret.files['stabilizing_key'])
-        self.client_secret.files['ca_cert'] = self._abspath(
-            self.client_secret.files['ca_cert'])
-        self.client_secret.files['cert'] = self._abspath(
-            self.client_secret.files['cert'])
-        self.client_secret.files['key'] = self._abspath(
-            self.client_secret.files['key'])
+        # self.client_secret.files['ca_cert'] = self._abspath(
+        #     self.client_secret.files['ca_cert'])
+        # self.client_secret.files['cert'] = self._abspath(
+        #     self.client_secret.files['cert'])
+        # self.client_secret.files['key'] = self._abspath(
+        #     self.client_secret.files['key'])
         self._domain.genesis_conf = self._abspath(self._domain.genesis_conf)
 
         # 用于生成etcd token, 所有etcd实例共享
@@ -896,11 +896,11 @@ class Composer(object):
             conn.run(
                 f"cd {cli_bin_dir}; ./meta_tool -conf {const.META_SERVICE_CONFIG_FILENAME} -set -key={key} -value='{load_file(file)}'")
         confs = {
-            f'/{self.chain_id}/portal/certs': {
-                'ca.crt': f'{to_base64(self.client_secret.files["ca_cert"])}',
-                'server.crt': f'{to_base64(self.client_secret.files["cert"])}',
-                'server.key': f'{to_base64(self.client_secret.files["key"])}',
-            },
+            # f'/{self.chain_id}/portal/certs': {
+            #     'ca.crt': f'{to_base64(self.client_secret.files["ca_cert"])}',
+            #     'server.crt': f'{to_base64(self.client_secret.files["cert"])}',
+            #     'server.key': f'{to_base64(self.client_secret.files["key"])}',
+            # },
             f'/{self.chain_id}/secrets/domain.key': {
                 'domain_key': f'{to_base64(self.domain_secret.files["key"])}',
                 'stabilizing_key': f'{to_base64(self.domain_secret.files["stabilizing_key"])}',
