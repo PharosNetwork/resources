@@ -857,10 +857,10 @@ class Composer(object):
         #     local.sync(self._build_file('conf/perf.conf'), cli_bin_dir)
 
         # 修改node_config.json
-        node_conf_file = join(cli_bin_dir, 'node_config.json')
-        node_conf = utils.load_json(node_conf_file)
-        node_conf['node']['endpoints'] = self._client_endpoints
-        utils.dump_json(node_conf_file, node_conf)
+        # node_conf_file = join(cli_bin_dir, 'node_config.json')
+        # node_conf = utils.load_json(node_conf_file)
+        # node_conf['node']['endpoints'] = self._client_endpoints
+        # utils.dump_json(node_conf_file, node_conf)
         # dump svc.conf 用于pharos_cli
         utils.dump_json(join(cli_bin_dir, const.MYGRID_GENESIS_CONFIG_FILENAME), self._mygrid_client_conf)
         # dump meta_service.conf 用于meta_tool，存储相关子命令
