@@ -737,6 +737,7 @@ class Composer(object):
             if self.cluster[instance.name].service == const.SERVICE_LIGHT:             
                 key_file = 'generate.key' if self._domain.use_generated_keys else 'new.key'
                 pkey_file = 'generate.pub' if self._domain.use_generated_keys else 'new.pub'
+                pop_file = 'generate.pop' if self._domain.use_generated_keys else 'new.pop'
 
                 deploy_certs_dir = join(instance.dir, 'certs/')
 
@@ -744,8 +745,10 @@ class Composer(object):
                 key_files = [
                     (f'scripts/resources/domain_keys/prime256v1/{self._domain.domain_label}/{key_file}', 'generate.key'),
                     (f'scripts/resources/domain_keys/prime256v1/{self._domain.domain_label}/{pkey_file}', 'generate.pub'),
+                    (f'scripts/resources/domain_keys/prime256v1/{self._domain.domain_label}/{pop_file}', 'generate.pop'),
                     (f'scripts/resources/domain_keys/bls12381/{self._domain.domain_label}/{key_file}', 'generate_bls.key'),
-                    (f'scripts/resources/domain_keys/bls12381/{self._domain.domain_label}/{pkey_file}', 'generate_bls.pub')
+                    (f'scripts/resources/domain_keys/bls12381/{self._domain.domain_label}/{pkey_file}', 'generate_bls.pub'),
+                    (f'scripts/resources/domain_keys/bls12381/{self._domain.domain_label}/{pop_file}', 'generate_bls.pop'),
                 ]
                 
                 for src_path, target_name in key_files:
