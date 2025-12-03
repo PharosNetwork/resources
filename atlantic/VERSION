@@ -1,9 +1,13 @@
 {
-  "Pharos-Atlantic-251121": {
+  "3.10.0": {
     "version": 10,
-    "epoch": 1548
+    "epoch": 10
   },
-  "Pharos-Atlantic-250930": {
+  "3.9.0": {
+    "version": 9,
+    "epoch": 9
+  },
+  "3.7.0": {
     "version": 7,
     "epoch": 0
   }
