@@ -87,6 +87,7 @@ class Generator(object):
     def _generate_prikey(self, key_type:str, key_dir: str, key_file: str, key_passwd: str = "123abc"):
         prikey_path = join(key_dir, key_file)
         pubkey_file = key_file.replace('.key', '.pub')
+        pop_file = key_file.replace('.key', '.pop')
 
         if exists(prikey_path):
             logs.debug(f"exsited key: {prikey_path}, override it with new key")
@@ -104,6 +105,15 @@ class Generator(object):
             local.run(f"openssl ecparam -name prime256v1 -genkey | openssl pkcs8 -topk8 -outform pem -out {prikey_path} -v2 aes-256-cbc -v2prf hmacWithSHA256 -passout pass:{key_passwd}")
             pubkey, _ = Generator._get_pubkey(key_type, prikey_path, key_passwd)
             local.run(f"echo {pubkey} > {key_dir}/{pubkey_file}")
+
+            # generate PoP using `aldaba_cli`
+            pharos_cli_path = self._build_file('bin', const.PHAROS_CLI)
+            evmone_so_path = self._build_file('bin', const.EVMONE_SO)
+
+            # The output is in last line:
+            ret = local.run(f"LD_PRELOAD={evmone_so_path} {pharos_cli_path} crypto -t gen-pop -f {prikey_path} -p {key_passwd} | tail -n 1") # last 1-lines are pop
+            pop = ret.stdout.split()[0]
+            local.run(f"echo {pop} > {key_dir}/{pop_file}")
 
         elif key_type == pharos.KeyType.RSA.value:
             local.run(f"openssl genrsa 2048 | openssl pkcs8 -topk8 -outform pem -out {prikey_path} -v2 aes-256-cbc -v2prf hmacWithSHA256 -passout pass:{key_passwd}")
@@ -130,6 +140,11 @@ class Generator(object):
 
             local.run(f"echo {bls_prikey} > {key_dir}/{key_file}")
             local.run(f"echo {bls_pubkey} > {key_dir}/{pubkey_file}")
+
+            # The output is in last line:
+            ret = local.run(f"LD_PRELOAD={evmone_so_path} {pharos_cli_path} crypto -t gen-pop --sk {bls_prikey} | tail -n 1") # last 1-lines are pop
+            pop = ret.stdout.split()[0]
+            local.run(f"echo {pop} > {key_dir}/{pop_file}")           
 
 
     def _get_pubkey(key_type:str, prikey_path: str, key_passwd: str = "123abc") -> (str, str):
@@ -216,7 +231,7 @@ class Generator(object):
 
 
 
-    def _generate_domain_slots(self, total_domains: int, domain_index: int, public_key: str, bls_pubkey: str, endpoint: str, stake: int):
+    def _generate_domain_slots(self, total_domains: int, domain_index: int, public_key: str, bls_pubkey: str, endpoint: str, stake: int, public_key_pop: str, bls_pubkey_pop: str):
         slots = {}
 
         # pool id
@@ -262,6 +277,11 @@ class Generator(object):
             public_key_slot = self._bytes_add_num(public_key_final_base_slot, i)
             slots["0x" + public_key_slot.hex()] = "0x" + slot
 
+        # for `Validator.publicKeyPop`
+        validator_public_key_pop_base_slot = 2
+        validator_public_key_pop_map_base_slot = self._bytes_add_num(validators_map_validator_slot, validator_public_key_pop_base_slot)
+        self._generate_string_slot(public_key_pop, validator_public_key_pop_map_base_slot, slots)
+
         # 4. for `Validator.blsPublicKey`
         validator_bls_public_key_base_slot = 3
         validator_bls_public_key_map_base_slot = self._bytes_add_num(validators_map_validator_slot, validator_bls_public_key_base_slot)
@@ -275,6 +295,11 @@ class Generator(object):
         for i, slot in enumerate(bls_hex_slots):
             bls_public_key_slot = self._bytes_add_num(bls_public_key_final_base_slot, i)
             slots["0x" + bls_public_key_slot.hex()] = "0x" + slot
+
+        # for `Validator.blsPublicKeyPop`
+        validator_bls_public_key_pop_base_slot = 4
+        validator_bls_public_pop_map_base_slot = self._bytes_add_num(validators_map_validator_slot, validator_bls_public_key_pop_base_slot)
+        self._generate_string_slot(bls_pubkey_pop, validator_bls_public_pop_map_base_slot, slots)        
 
         # 5. for `Validator.endpoint`
         validator_endpoint_base_slot = 5
@@ -365,6 +390,27 @@ class Generator(object):
         cfg_addr = "3100000000000000000000000000000000000000"
         cfg_addr_bytes = bytes.fromhex(cfg_addr).rjust(32, b'\0')
         slots["0x" + cfg_base_slot_bytes.hex()] = "0x" + cfg_addr_bytes.hex()
+
+        # uint256 public totalSupply;
+        cfg_base_slot = 9
+        cfg_base_slot_bytes = to_bytes(cfg_base_slot).rjust(32, b'\0')
+        total_supply = 1000000000 * 10**18 # 1000000000 ether;
+        total_supply_bytes = int_to_big_endian(total_supply).rjust(32, b'\0')
+        slots["0x" + cfg_base_slot_bytes.hex()] = "0x" + total_supply_bytes.hex()
+
+        # uint256 public currentInflationRate;
+        cfg_base_slot = 10
+        cfg_base_slot_bytes = to_bytes(cfg_base_slot).rjust(32, b'\0')
+        current_inflation_rate = 9125
+        current_inflation_rate_bytes = int_to_big_endian(current_inflation_rate).rjust(32, b'\0')
+        slots["0x" + cfg_base_slot_bytes.hex()] = "0x" + current_inflation_rate_bytes.hex()
+
+        # uint256 public lastInflationTotalSupplySnapshot;
+        cfg_base_slot = 12
+        cfg_base_slot_bytes = to_bytes(cfg_base_slot).rjust(32, b'\0')
+        last_total_supply_snapshot = 1000000000 * 10**18 # 1000000000 ether;
+        last_total_supply_snapshot_bytes = int_to_big_endian(total_supply).rjust(32, b'\0')
+        slots["0x" + cfg_base_slot_bytes.hex()] = "0x" + last_total_supply_snapshot_bytes.hex()        
 
         return slots
 
@@ -801,12 +847,24 @@ class Generator(object):
         #stake = 1000000000000000000 # 1 ETH
         GWEI_TO_WEI = 1000000000
         total_stake_in_wei = 0
+        # timestamp = time.time_ns() // 1000000 # not supported until python 3.7
+        genesis_timestamp = int(round(time.time() * 1000))
         for domain_label, domain in all_domain.items():
             key_file = self._abspath(domain.secret.domain.files['key'])
             stabilizing_pk_file = self._abspath(domain.secret.domain.files['stabilizing_pk'])
 
             with open(stabilizing_pk_file, 'r') as spk_file:
                 spk = spk_file.read().strip()
+
+            # bls pop
+            spk_pop_file = stabilizing_pk_file.replace('.pub', '.pop')
+            with open(spk_pop_file, 'r') as pop_file:
+                spk_pop = pop_file.read().strip()
+
+            # r1 pop
+            pk_pop_file = key_file.replace('.key', '.pop')
+            with open(pk_pop_file, 'r') as pop_file:
+                pk_pop = pop_file.read().strip()
             
             try:
                 with open(domain.secret.domain.files.get('key_pub', "r")) as pk_file:
@@ -832,7 +890,7 @@ class Generator(object):
             for instance in domain.cluster.values():
                 instance.env["NODE_ID"] = node_id
             domain_stake_in_wei = domain.initial_stake_in_gwei * GWEI_TO_WEI
-            domain_storage_slot = self._generate_domain_slots(len(all_domain),domain_index, pubkey, spk, self._domain_endpoints[domain_label], domain_stake_in_wei)
+            domain_storage_slot = self._generate_domain_slots(len(all_domain),domain_index, pubkey, spk, self._domain_endpoints[domain_label], domain_stake_in_wei, public_key_pop=pk_pop, bls_pubkey_pop=spk_pop)
             total_stake_in_wei += domain_stake_in_wei
             domain_index += 1
             storage_slot_kvs.update(domain_storage_slot)
@@ -856,6 +914,13 @@ class Generator(object):
         cfg_addr_bytes = bytes.fromhex(cfg_addr).rjust(32, b'\0')
         storage_slot_kvs["0x" + cfg_base_slot_bytes.hex()] = "0x" + cfg_addr_bytes.hex()
 
+        # uint256 public lastInflationAdjustmentTime;
+        cfg_base_slot = 11
+        cfg_base_slot_bytes = to_bytes(cfg_base_slot).rjust(32, b'\0')
+        genesis_timestamp_in_s = int(genesis_timestamp / 1000)
+        genesis_timestamp_in_s_bytes = int_to_big_endian(genesis_timestamp_in_s).rjust(32, b'\0')
+        storage_slot_kvs["0x" + cfg_base_slot_bytes.hex()] = "0x" + genesis_timestamp_in_s_bytes.hex()
+
         # add access_control and disable initializers
         intrinsic_tx_sender = "1111111111111111111111111111111111111111"
         self._generate_access_control_admin(storage_slot_kvs, self._deploy.admin_addr) # default admin
@@ -877,9 +942,7 @@ class Generator(object):
         genesis_data['alloc'][sys_staking_addr]['balance'] = hex(total_stake_in_wei)
 
         # chain epoch duration
-        # timestamp = time.time_ns() // 1000000 # not supported until python 3.7
-        timestamp = int(round(time.time() * 1000))
-        genesis_data['configs']['chain.epoch_start_timestamp'] = f'{timestamp}'
+        genesis_data['configs']['chain.epoch_start_timestamp'] = f'{genesis_timestamp}'
 
         # generate chaincfg storage slot
         sys_chaincfg_addr = '3100000000000000000000000000000000000000'
@@ -924,15 +987,10 @@ class Generator(object):
                 json.dump(genesis_data, fh, indent=2)
             # 使用 admin_addr proxy_admin_addr 替换genesis.{self._deploy.chain_id}.conf中的默认值
             conf_admin_addr = self._deploy.admin_addr[2:] if self._deploy.admin_addr.startswith("0x") else self._deploy.admin_addr
-            conf_proxy_admin_addr = self._deploy.proxy_admin_addr[2:] if self._deploy.proxy_admin_addr.startswith("0x") else self._deploy.proxy_admin_addr
             default_admin_addr = "2cc298bdee7cfeac9b49f9659e2f3d637e149696"
-            default_proxy_admin_addr = "0278872d3f68b15156e486da1551bcd34493220d"
             # 替换分隔符为 |
             local.run(
                 f'sed -i "s|{default_admin_addr}|{conf_admin_addr}|" {self._abspath(self._genesis_file)}'
-            )
-            local.run(
-                f'sed -i "s|{default_proxy_admin_addr}|{conf_proxy_admin_addr}|" {self._abspath(self._genesis_file)}'
             )
 
         for domain_label, domain in all_domain.items():
