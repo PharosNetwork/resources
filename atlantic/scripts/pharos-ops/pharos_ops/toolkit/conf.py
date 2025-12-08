@@ -954,22 +954,22 @@ class Generator(object):
             utils.dump_json(domain_file, domain_data, list_inline=True)
                   
         # 配置以最新的 SPEC VERSION 进行部署
-        if self._deploy.use_latest_version:
-            pharos_version_file = self._build_file('bin', const.PHAROS_VERSION)
-            pharos_version_file_bak = self._build_file('bin', f"{const.PHAROS_VERSION}_bak")
-                        
-            # 备份文件
-            if not exists(pharos_version_file_bak): 
-                local.run(f'cp -rf {pharos_version_file} {pharos_version_file_bak}')
-
-            with open(pharos_version_file, "r") as file:
-                data = json.load(file)  
-            max_key = max(data, key=lambda k: data[k]["version"])
-            result = {max_key: data[max_key]}
-            result[max_key]["epoch"] = 0
-            logs.info(f'dump VERSION file at: {pharos_version_file}')
-            with open(pharos_version_file, "w") as file:
-                json.dump(result, file, indent=2)
+        # if self._deploy.use_latest_version:
+        #     pharos_version_file = self._build_file('bin', const.PHAROS_VERSION)
+        #     pharos_version_file_bak = self._build_file('bin', f"{const.PHAROS_VERSION}_bak")
+        #                 
+        #     # 备份文件
+        #     if not exists(pharos_version_file_bak): 
+        #         local.run(f'cp -rf {pharos_version_file} {pharos_version_file_bak}')
+        # 
+        #     with open(pharos_version_file, "r") as file:
+        #         data = json.load(file)  
+        #     max_key = max(data, key=lambda k: data[k]["version"])
+        #     result = {max_key: data[max_key]}
+        #     result[max_key]["epoch"] = 0
+        #     logs.info(f'dump VERSION file at: {pharos_version_file}')
+        #     with open(pharos_version_file, "w") as file:
+        #         json.dump(result, file, indent=2)
 
     def generate_genesis(self):
         all_domain: Dict[str, Domain] = {}
