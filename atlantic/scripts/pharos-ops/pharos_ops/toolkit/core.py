@@ -857,10 +857,10 @@ class Composer(object):
         #     local.sync(self._build_file('conf/perf.conf'), cli_bin_dir)
 
         # 修改node_config.json
-        node_conf_file = join(cli_bin_dir, 'node_config.json')
-        node_conf = utils.load_json(node_conf_file)
-        node_conf['node']['endpoints'] = self._client_endpoints
-        utils.dump_json(node_conf_file, node_conf)
+        # node_conf_file = join(cli_bin_dir, 'node_config.json')
+        # node_conf = utils.load_json(node_conf_file)
+        # node_conf['node']['endpoints'] = self._client_endpoints
+        # utils.dump_json(node_conf_file, node_conf)
         # dump svc.conf 用于pharos_cli
         utils.dump_json(join(cli_bin_dir, const.MYGRID_GENESIS_CONFIG_FILENAME), self._mygrid_client_conf)
         # dump meta_service.conf 用于meta_tool，存储相关子命令
@@ -2462,4 +2462,3 @@ def diffstatefork(domain1: Composer, domain2: Composer, start: str):
     state1 = domain1.get_state_by_num(search_num)
     state2 = domain2.get_state_by_num(search_num)
     compare_json(state1, state2)
-
