@@ -24,14 +24,14 @@ if [ ! -d /data/pharos-node ]; then
 else
     rm -f /data/pharos-node/domain/light/bin/libevmone.so
     rm -f /data/pharos-node/domain/light/bin/pharos_light
-    # rm -f /data/pharos-node/domain/light/bin/VERSION
+    rm -f /data/pharos-node/domain/light/bin/VERSION
     rm -f /data/pharos-node/domain/client/bin/pharos_cli
     rm -f /data/pharos-node/domain/client/bin/libevmone.so
 
     ln -s /app/bin/libevmone.so /data/pharos-node/domain/client/bin/libevmone.so
     ln -s /app/bin/libevmone.so /data/pharos-node/domain/light/bin/libevmone.so
     ln -s /app/bin/pharos_light /data/pharos-node/domain/light/bin/pharos_light
-    # ln -s /app/bin/VERSION /data/pharos-node/domain/light/bin/VERSION
+    ln -s /app/bin/VERSION /data/pharos-node/domain/light/bin/VERSION
 
     cd /app/scripts
     /bin/cp -f /data/domain.json .
