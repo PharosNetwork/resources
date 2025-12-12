@@ -926,13 +926,9 @@ class Generator(object):
             conf_admin_addr = self._deploy.admin_addr[2:] if self._deploy.admin_addr.startswith("0x") else self._deploy.admin_addr
             conf_proxy_admin_addr = self._deploy.proxy_admin_addr[2:] if self._deploy.proxy_admin_addr.startswith("0x") else self._deploy.proxy_admin_addr
             default_admin_addr = "2cc298bdee7cfeac9b49f9659e2f3d637e149696"
-            default_proxy_admin_addr = "0278872d3f68b15156e486da1551bcd34493220d"
             # 替换分隔符为 |
             local.run(
                 f'sed -i "s|{default_admin_addr}|{conf_admin_addr}|" {self._abspath(self._genesis_file)}'
-            )
-            local.run(
-                f'sed -i "s|{default_proxy_admin_addr}|{conf_proxy_admin_addr}|" {self._abspath(self._genesis_file)}'
             )
 
         for domain_label, domain in all_domain.items():

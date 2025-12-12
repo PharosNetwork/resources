@@ -167,3 +167,17 @@ CLI_JSON = '''
 '''
 
 PREDEFINED_DOMAINS = ["domain0", "domain1", "domain2", "domain3", "domain4", "domain5", "domain6", "domain7"]
+
+MainnetGenesisValidatorOwners = [
+    "0x000327ba9f4f4788e9c47ebd2739e2db90014800",
+    "0x0c2ad5ea0cb0e438d88b6cc2a91e864928443cfe",
+    "0x98c3a7063206d918d8b1577271df6ebbcc32e333",
+    "0x00189620acbbe1db74042a7c6eb35de59305be23"
+]
+
+MainnetGenesisValidatorName = [
+    "PharosFoundation0",
+    "PharosFoundation1",
+    "PharosFoundation2",
+    "PharosFoundation3"
+]

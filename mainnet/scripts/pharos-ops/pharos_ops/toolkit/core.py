@@ -737,6 +737,7 @@ class Composer(object):
             if self.cluster[instance.name].service == const.SERVICE_LIGHT:             
                 key_file = 'generate.key' if self._domain.use_generated_keys else 'new.key'
                 pkey_file = 'generate.pub' if self._domain.use_generated_keys else 'new.pub'
+                pop_file = 'generate.pop' if self._domain.use_generated_keys else 'new.pop'
 
                 deploy_certs_dir = join(instance.dir, 'certs/')
 
@@ -744,8 +745,10 @@ class Composer(object):
                 key_files = [
                     (f'scripts/resources/domain_keys/prime256v1/{self._domain.domain_label}/{key_file}', 'generate.key'),
                     (f'scripts/resources/domain_keys/prime256v1/{self._domain.domain_label}/{pkey_file}', 'generate.pub'),
+                    (f'scripts/resources/domain_keys/prime256v1/{self._domain.domain_label}/{pop_file}', 'generate.pop'),
                     (f'scripts/resources/domain_keys/bls12381/{self._domain.domain_label}/{key_file}', 'generate_bls.key'),
-                    (f'scripts/resources/domain_keys/bls12381/{self._domain.domain_label}/{pkey_file}', 'generate_bls.pub')
+                    (f'scripts/resources/domain_keys/bls12381/{self._domain.domain_label}/{pkey_file}', 'generate_bls.pub'),
+                    (f'scripts/resources/domain_keys/bls12381/{self._domain.domain_label}/{pop_file}', 'generate_bls.pop'),
                 ]
                 
                 for src_path, target_name in key_files:
@@ -829,7 +832,7 @@ class Composer(object):
 
         local.sync(self._build_file('bin', const.PHAROS_CLI), cli_bin_dir, '-avL')
         local.sync(self._build_file('bin', const.EVMONE_SO), cli_bin_dir, '-avL')
-        local.sync(self._build_file('bin', const.PHAROS_VERSION), cli_bin_dir, '-avL')
+        local.sync(self._build_file('bin', const.PHAROS_VERSION), cli_bin_dir)
         local.sync(self._build_file('bin', const.ETCD_CTL_BIN), cli_bin_dir, '-avL')
         local.sync(self._build_file('bin', const.SVC_META_TOOL), cli_bin_dir, '-avL')
         local.sync(self._domain.genesis_conf, cli_conf_dir)
@@ -2462,4 +2465,3 @@ def diffstatefork(domain1: Composer, domain2: Composer, start: str):
     state1 = domain1.get_state_by_num(search_num)
     state2 = domain2.get_state_by_num(search_num)
     compare_json(state1, state2)
-

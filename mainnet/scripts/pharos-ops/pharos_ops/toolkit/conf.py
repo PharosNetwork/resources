@@ -87,6 +87,7 @@ class Generator(object):
     def _generate_prikey(self, key_type:str, key_dir: str, key_file: str, key_passwd: str = "123abc"):
         prikey_path = join(key_dir, key_file)
         pubkey_file = key_file.replace('.key', '.pub')
+        pop_file = key_file.replace('.key', '.pop')
 
         if exists(prikey_path):
             logs.debug(f"exsited key: {prikey_path}, override it with new key")
@@ -104,6 +105,15 @@ class Generator(object):
             local.run(f"openssl ecparam -name prime256v1 -genkey | openssl pkcs8 -topk8 -outform pem -out {prikey_path} -v2 aes-256-cbc -v2prf hmacWithSHA256 -passout pass:{key_passwd}")
             pubkey, _ = Generator._get_pubkey(key_type, prikey_path, key_passwd)
             local.run(f"echo {pubkey} > {key_dir}/{pubkey_file}")
+
+            # generate PoP using `aldaba_cli`
+            pharos_cli_path = self._build_file('bin', const.PHAROS_CLI)
+            evmone_so_path = self._build_file('bin', const.EVMONE_SO)
+
+            # The output is in last line:
+            ret = local.run(f"LD_PRELOAD={evmone_so_path} {pharos_cli_path} crypto -t gen-pop -f {prikey_path} -p {key_passwd} | tail -n 1") # last 1-lines are pop
+            pop = ret.stdout.split()[0]
+            local.run(f"echo {pop} > {key_dir}/{pop_file}")
 
         elif key_type == pharos.KeyType.RSA.value:
             local.run(f"openssl genrsa 2048 | openssl pkcs8 -topk8 -outform pem -out {prikey_path} -v2 aes-256-cbc -v2prf hmacWithSHA256 -passout pass:{key_passwd}")
@@ -130,6 +140,11 @@ class Generator(object):
 
             local.run(f"echo {bls_prikey} > {key_dir}/{key_file}")
             local.run(f"echo {bls_pubkey} > {key_dir}/{pubkey_file}")
+
+            # The output is in last line:
+            ret = local.run(f"LD_PRELOAD={evmone_so_path} {pharos_cli_path} crypto -t gen-pop --sk {bls_prikey} | tail -n 1") # last 1-lines are pop
+            pop = ret.stdout.split()[0]
+            local.run(f"echo {pop} > {key_dir}/{pop_file}")
 
 
     def _get_pubkey(key_type:str, prikey_path: str, key_passwd: str = "123abc") -> (str, str):
@@ -214,10 +229,25 @@ class Generator(object):
         result = bytes(a | b for a, b in zip(bytes1, bytes2))
         return result
 
+    def _generate_slot(self, items: list, slot_size = 32) -> str:
+        slot_bytes = bytearray(slot_size)
+        for item in items:
+            offset = item['offset']
+            value = item['value']
+            length = len(value)
+            if offset + length > slot_size:
+                raise ValueError(f"Value at offset {offset} with length {length} exceeds slot size {slot_size}")
+            start_index = slot_size - (offset + length)
+            end_index = start_index + length
+            slot_bytes[start_index:end_index] = value
 
+        return "0x" + slot_bytes.hex()
 
-    def _generate_domain_slots(self, total_domains: int, domain_index: int, public_key: str, bls_pubkey: str, endpoint: str, stake: int):
+    def _generate_domain_slots(self, total_domains: int, domain_index: int, public_key: str, bls_pubkey: str, endpoint: str, stake: int, public_key_pop: str, bls_pubkey_pop: str):
         slots = {}
+
+        validator_owner = const.MainnetGenesisValidatorOwners[domain_index]
+        validator_name = const.MainnetGenesisValidatorName[domain_index]
 
         # pool id
         if public_key.startswith('0x'):
@@ -241,12 +271,13 @@ class Generator(object):
         # 2. for `Validator.description`
         validator_description_base_slot = 0
         validator_description_map_base_slot = self._bytes_add_num(validators_map_validator_slot, validator_description_base_slot)
-        description = "domain" + str(domain_index)
-        description_length = len(description.encode('utf-8')) * 2 # short string
-        description_length_bytes = to_bytes(description_length).rjust(32, b'\0')
-        hex_slots = bytes.fromhex(self._string_to_hex_slots(description)[0])
-        final_bytes = self._bytes_bitwise_add(hex_slots, description_length_bytes)
-        slots["0x" + validator_description_map_base_slot.hex()] = "0x" + final_bytes.hex()
+        # description = "domain" + str(domain_index)
+        # description_length = len(description.encode('utf-8')) * 2 # short string
+        # description_length_bytes = to_bytes(description_length).rjust(32, b'\0')
+        # hex_slots = bytes.fromhex(self._string_to_hex_slots(description)[0])
+        # final_bytes = self._bytes_bitwise_add(hex_slots, description_length_bytes)
+        # slots["0x" + validator_description_map_base_slot.hex()] = "0x" + final_bytes.hex()
+        self._generate_string_slot(validator_name, validator_description_map_base_slot, slots)
 
         # 3. for `Validator.publicKey`
         validator_public_key_base_slot = 1
@@ -262,6 +293,11 @@ class Generator(object):
             public_key_slot = self._bytes_add_num(public_key_final_base_slot, i)
             slots["0x" + public_key_slot.hex()] = "0x" + slot
 
+        # for `Validator.publicKeyPop`
+        validator_public_key_pop_base_slot = 2
+        validator_public_key_pop_map_base_slot = self._bytes_add_num(validators_map_validator_slot, validator_public_key_pop_base_slot)
+        self._generate_string_slot(public_key_pop, validator_public_key_pop_map_base_slot, slots)
+
         # 4. for `Validator.blsPublicKey`
         validator_bls_public_key_base_slot = 3
         validator_bls_public_key_map_base_slot = self._bytes_add_num(validators_map_validator_slot, validator_bls_public_key_base_slot)
@@ -275,6 +311,11 @@ class Generator(object):
         for i, slot in enumerate(bls_hex_slots):
             bls_public_key_slot = self._bytes_add_num(bls_public_key_final_base_slot, i)
             slots["0x" + bls_public_key_slot.hex()] = "0x" + slot
+
+        # for `Validator.blsPublicKeyPop`
+        validator_bls_public_key_pop_base_slot = 4
+        validator_bls_public_pop_map_base_slot = self._bytes_add_num(validators_map_validator_slot, validator_bls_public_key_pop_base_slot)
+        self._generate_string_slot(bls_pubkey_pop, validator_bls_public_pop_map_base_slot, slots)
 
         # 5. for `Validator.endpoint`
         validator_endpoint_base_slot = 5
@@ -322,7 +363,7 @@ class Generator(object):
         #9. for `validator.owner`
         validator_owner_base_slot = 9
         validator_pool_id_map_base_slot = self._bytes_add_num(validators_map_validator_slot, validator_owner_base_slot)
-        root_sys_addr = self._deploy.admin_addr
+        root_sys_addr = validator_owner
         if root_sys_addr.startswith('0x'):
             root_sys_addr = root_sys_addr[2:]  # Remove the '0x' prefix
         root_sys_addr_slot_value = root_sys_addr.rjust(64, '0')
@@ -366,11 +407,40 @@ class Generator(object):
         cfg_addr_bytes = bytes.fromhex(cfg_addr).rjust(32, b'\0')
         slots["0x" + cfg_base_slot_bytes.hex()] = "0x" + cfg_addr_bytes.hex()
 
+        # uint256 public totalSupply;
+        cfg_base_slot = 9
+        cfg_base_slot_bytes = to_bytes(cfg_base_slot).rjust(32, b'\0')
+        total_supply = 1000000000 * 10**18 # 1000000000 ether;
+        total_supply_bytes = int_to_big_endian(total_supply).rjust(32, b'\0')
+        slots["0x" + cfg_base_slot_bytes.hex()] = "0x" + total_supply_bytes.hex()
+
+        # uint256 public currentInflationRate;
+        cfg_base_slot = 10
+        cfg_base_slot_bytes = to_bytes(cfg_base_slot).rjust(32, b'\0')
+        current_inflation_rate = 9125
+        current_inflation_rate_bytes = int_to_big_endian(current_inflation_rate).rjust(32, b'\0')
+        slots["0x" + cfg_base_slot_bytes.hex()] = "0x" + current_inflation_rate_bytes.hex()
+
+        # uint256 public lastInflationTotalSupplySnapshot;
+        cfg_base_slot = 12
+        cfg_base_slot_bytes = to_bytes(cfg_base_slot).rjust(32, b'\0')
+        last_total_supply_snapshot = 1000000000 * 10**18 # 1000000000 ether;
+        last_total_supply_snapshot_bytes = int_to_big_endian(total_supply).rjust(32, b'\0')
+        slots["0x" + cfg_base_slot_bytes.hex()] = "0x" + last_total_supply_snapshot_bytes.hex()
+
+        # address internal implAddress;
+        cfg_base_slot = 13
+        cfg_base_slot_bytes = to_bytes(cfg_base_slot).rjust(32, b'\0')
+        impl_addr = "4100000000000000000000000000000000000001" # actual implementation addr of staking
+        impl_addr_bytes = bytes.fromhex(impl_addr).rjust(32, b'\0')
+        slots["0x" + cfg_base_slot_bytes.hex()] = "0x" + impl_addr_bytes.hex()
+
         return slots
 
     def _generate_chaincfg_slots(self, configs: Dict[str, str]):
         slots = {}
 
+        # ConfigCheckpoint[] configCps;
         config_cps_base_slot = 1
         config_cps_base_slot_bytes = int_to_big_endian(config_cps_base_slot).rjust(32, b'\0')
 
@@ -411,6 +481,7 @@ class Generator(object):
             slot_index += 1
 
         
+        # address public stakingAddress;
         # 5. put stakingAddress
         config_root_sys_base_slot = 0
         config_root_sys_base_slot_bytes = int_to_big_endian(config_root_sys_base_slot).rjust(32, b'\0')
@@ -418,24 +489,70 @@ class Generator(object):
         sys_staking_addr_bytes = bytes.fromhex(sys_staking_addr).rjust(32, b'\0')
         slots["0x" + config_root_sys_base_slot_bytes.hex()] = "0x" + sys_staking_addr_bytes.hex()
 
+        # address internal implAddress;
+        cfg_base_slot = 3
+        cfg_base_slot_bytes = to_bytes(cfg_base_slot).rjust(32, b'\0')
+        impl_addr = "3100000000000000000000000000000000000001" # actual implementation addr of chaincfg
+        impl_addr_bytes = bytes.fromhex(impl_addr).rjust(32, b'\0')
+        slots["0x" + cfg_base_slot_bytes.hex()] = "0x" + impl_addr_bytes.hex()
+
         return slots
 
     def _generate_rule_mng_slots(self, configs: Dict[str, str]):
-        # administrator_
-        root_sys_base_slot = 5
-        root_sys_base_slot_bytes = int_to_big_endian(root_sys_base_slot).rjust(32, b'\0')
-        admin_slot_hexkey = "0x" + root_sys_base_slot_bytes.hex()
-        admin_slot_value = configs[admin_slot_hexkey]
+        slots = {}
 
-        root_sys_addr = self._deploy.admin_addr
-        if root_sys_addr.startswith('0x'):
-            root_sys_addr = root_sys_addr[2:]  # Remove the '0x' prefix
+        """
+        {
+          "astId": 49465,
+          "contract": "src/ruleManager/RuleManager.sol:RuleManager",
+          "label": "nextId_",
+          "offset": 0,
+          "slot": "5",
+          "type": "t_uint64"
+        },
+        {
+          "astId": 49467,
+          "contract": "src/ruleManager/RuleManager.sol:RuleManager",
+          "label": "proveThreshold_",
+          "offset": 8,
+          "slot": "5",
+          "type": "t_uint32"
+        },
+        {
+          "astId": 49469,
+          "contract": "src/ruleManager/RuleManager.sol:RuleManager",
+          "label": "implAddress",
+          "offset": 12,
+          "slot": "5",
+          "type": "t_address"
+        }
+        """
 
-        admin_slot_value = admin_slot_value[:-len(root_sys_addr)] + root_sys_addr
+        # uint64 nextId_;
+        # uint32 proveThreshold_;
+        # address internal implAddress;
+        # in the same slot 5
+        rule_base_slot = 5
+        rule_base_slot_bytes = to_bytes(rule_base_slot).rjust(32, b'\0')
+        next_id = 1
+        prove_threshold = 1000
+        impl_addr = "2100000000000000000000000000000000000001"
 
-        configs["0x" + root_sys_base_slot_bytes.hex()] = admin_slot_value
+        next_id_bytes = next_id.to_bytes(8, 'big')
+        prove_threshold_bytes = prove_threshold.to_bytes(4, 'big')
+        impl_addr_bytes = bytes.fromhex(impl_addr)
 
-        return configs
+        values = [
+            {'offset': 0, 'value': next_id_bytes},
+            {'offset': 8, 'value': prove_threshold_bytes},
+            {'offset': 12, 'value': impl_addr_bytes}
+        ]
+        values_slot = self._generate_slot(values)
+        slots["0x" + rule_base_slot_bytes.hex()] = values_slot
+
+        # print(values_slot)
+
+        return slots
 
     def _generate_access_control_admin(self, configs: Dict[str, str], account: Optional[str]):
         """
@@ -556,7 +673,7 @@ class Generator(object):
 
         # the `_initialized` and `_initializing` are in the same slot, so we set the value directly here
         # set `_initialized`
-        initializable_storage_base_slot_value_of_initialized = 0xffffffffffffffff # uint64_max
+        initializable_storage_base_slot_value_of_initialized = 0x1 # version 1 to enable future reinitializers
         initialized_value_bytes_len = len(int_to_big_endian(initializable_storage_base_slot_value_of_initialized))
         initializable_storage_base_slot_value_of_initialized_bytes = int_to_big_endian(initializable_storage_base_slot_value_of_initialized).rjust(32, b'\0')
 
@@ -801,12 +918,24 @@ class Generator(object):
         #stake = 1000000000000000000 # 1 ETH
         GWEI_TO_WEI = 1000000000
         total_stake_in_wei = 0
+        # timestamp = time.time_ns() // 1000000 # not supported until python 3.7
+        genesis_timestamp = int(round(time.time() * 1000))
         for domain_label, domain in all_domain.items():
             key_file = self._abspath(domain.secret.domain.files['key'])
             stabilizing_pk_file = self._abspath(domain.secret.domain.files['stabilizing_pk'])
 
             with open(stabilizing_pk_file, 'r') as spk_file:
                 spk = spk_file.read().strip()
+
+            # bls pop
+            spk_pop_file = stabilizing_pk_file.replace('.pub', '.pop')
+            with open(spk_pop_file, 'r') as pop_file:
+                spk_pop = pop_file.read().strip()
+
+            # r1 pop
+            pk_pop_file = key_file.replace('.key', '.pop')
+            with open(pk_pop_file, 'r') as pop_file:
+                pk_pop = pop_file.read().strip()
             
             try:
                 with open(domain.secret.domain.files.get('key_pub', "r")) as pk_file:
@@ -817,13 +946,17 @@ class Generator(object):
                 pubkey, pubkey_bytes = Generator._get_pubkey(self._deploy.domain_key_type, key_file, domain.key_passwd)  
             
             node_id = hashlib.sha256(bytes(pubkey_bytes)).hexdigest()
+
+            validator_owner = const.MainnetGenesisValidatorOwners[domain_index]
+            validator_name = const.MainnetGenesisValidatorName[domain_index]
+            logs.info(f'GenesisValidator{domain_index} Name {validator_name}, Owner {validator_owner}')
             
             genesis_domains[domain_label] = {
                 'pubkey': f'0x{pubkey}',
                 'stabilizing_pubkey': spk,
-                'owner': 'root',
+                'owner': validator_owner,
                 'endpoints': [f'{self._domain_endpoints[domain_label]}'],
-                'staking' : '200000000',
+                'staking' : '1000000000000000000000000',
                 'commission_rate' : '10',
                 'node_id': node_id
             }
@@ -832,7 +965,7 @@ class Generator(object):
             for instance in domain.cluster.values():
                 instance.env["NODE_ID"] = node_id
             domain_stake_in_wei = domain.initial_stake_in_gwei * GWEI_TO_WEI
-            domain_storage_slot = self._generate_domain_slots(len(all_domain),domain_index, pubkey, spk, self._domain_endpoints[domain_label], domain_stake_in_wei)
+            domain_storage_slot = self._generate_domain_slots(len(all_domain),domain_index, pubkey, spk, self._domain_endpoints[domain_label], domain_stake_in_wei, public_key_pop=pk_pop, bls_pubkey_pop=spk_pop)
             total_stake_in_wei += domain_stake_in_wei
             domain_index += 1
             storage_slot_kvs.update(domain_storage_slot)
@@ -856,6 +989,13 @@ class Generator(object):
         cfg_addr_bytes = bytes.fromhex(cfg_addr).rjust(32, b'\0')
         storage_slot_kvs["0x" + cfg_base_slot_bytes.hex()] = "0x" + cfg_addr_bytes.hex()
 
+        # uint256 public lastInflationAdjustmentTime;
+        cfg_base_slot = 11
+        cfg_base_slot_bytes = to_bytes(cfg_base_slot).rjust(32, b'\0')
+        genesis_timestamp_in_s = int(genesis_timestamp / 1000)
+        genesis_timestamp_in_s_bytes = int_to_big_endian(genesis_timestamp_in_s).rjust(32, b'\0')
+        storage_slot_kvs["0x" + cfg_base_slot_bytes.hex()] = "0x" + genesis_timestamp_in_s_bytes.hex()
+
         # add access_control and disable initializers
         intrinsic_tx_sender = "1111111111111111111111111111111111111111"
         self._generate_access_control_admin(storage_slot_kvs, self._deploy.admin_addr) # default admin
@@ -877,9 +1017,7 @@ class Generator(object):
         genesis_data['alloc'][sys_staking_addr]['balance'] = hex(total_stake_in_wei)
 
         # chain epoch duration
-        # timestamp = time.time_ns() // 1000000 # not supported until python 3.7
-        timestamp = int(round(time.time() * 1000))
-        genesis_data['configs']['chain.epoch_start_timestamp'] = f'{timestamp}'
+        genesis_data['configs']['chain.epoch_start_timestamp'] = f'{genesis_timestamp}'
 
         # generate chaincfg storage slot
         sys_chaincfg_addr = '3100000000000000000000000000000000000000'
@@ -902,13 +1040,15 @@ class Generator(object):
 
         # generate rule mng storage slot
         sys_rule_mng_addr = '2100000000000000000000000000000000000000'
-        storage_slot_kvs = genesis_data['alloc'][sys_rule_mng_addr]['storage']
+        storage_slot_kvs = self._generate_rule_mng_slots(genesis_data['configs'])
         intrinsic_tx_sender = "1111111111111111111111111111111111111111"
         self._generate_access_control_admin(storage_slot_kvs, self._deploy.admin_addr) # default admin
         self._generate_access_control_admin(storage_slot_kvs, intrinsic_tx_sender) # intrinsic sender
         self._generate_disable_upgradeable_contract_initializers(storage_slot_kvs)
+        rulemng_storage_slot_kvs = genesis_data['alloc'][sys_rule_mng_addr]['storage']
+        rulemng_storage_slot_kvs.update(storage_slot_kvs)
 
-        genesis_data['alloc'][sys_rule_mng_addr]['storage'] = storage_slot_kvs
+        genesis_data['alloc'][sys_rule_mng_addr]['storage'] = rulemng_storage_slot_kvs
 
         # write admin addr
         root_sys_addr = self._deploy.admin_addr
@@ -924,15 +1064,10 @@ class Generator(object):
                 json.dump(genesis_data, fh, indent=2)
             # 使用 admin_addr proxy_admin_addr 替换genesis.{self._deploy.chain_id}.conf中的默认值
             conf_admin_addr = self._deploy.admin_addr[2:] if self._deploy.admin_addr.startswith("0x") else self._deploy.admin_addr
-            conf_proxy_admin_addr = self._deploy.proxy_admin_addr[2:] if self._deploy.proxy_admin_addr.startswith("0x") else self._deploy.proxy_admin_addr
             default_admin_addr = "2cc298bdee7cfeac9b49f9659e2f3d637e149696"
-            default_proxy_admin_addr = "0278872d3f68b15156e486da1551bcd34493220d"
             # 替换分隔符为 |
             local.run(
                 f'sed -i "s|{default_admin_addr}|{conf_admin_addr}|" {self._abspath(self._genesis_file)}'
-            )
-            local.run(
-                f'sed -i "s|{default_proxy_admin_addr}|{conf_proxy_admin_addr}|" {self._abspath(self._genesis_file)}'
             )
 
         for domain_label, domain in all_domain.items():
@@ -961,7 +1096,7 @@ class Generator(object):
             # 备份文件
             if not exists(pharos_version_file_bak): 
                 local.run(f'cp -rf {pharos_version_file} {pharos_version_file_bak}')
-        
+
             with open(pharos_version_file, "r") as file:
                 data = json.load(file)  
             max_key = max(data, key=lambda k: data[k]["version"])
