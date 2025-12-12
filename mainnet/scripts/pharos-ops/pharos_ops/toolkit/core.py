@@ -649,9 +649,9 @@ class Composer(object):
             for binary in binaries:
                 if backup:
                     conn.run(f'mv {deploy_bin_dir}/{binary} {deploy_bin_dir}/{binary}_bak')
-                    # conn.run(f'mv {deploy_bin_dir}/{const.PHAROS_VERSION} {deploy_bin_dir}/{const.PHAROS_VERSION}_bak')
+                    conn.run(f'mv {deploy_bin_dir}/{const.PHAROS_VERSION} {deploy_bin_dir}/{const.PHAROS_VERSION}_bak')
                 conn.sync(self._build_file('bin', binary), deploy_bin_dir)
-                # conn.sync(self._build_file('bin', const.PHAROS_VERSION), deploy_bin_dir)
+                conn.sync(self._build_file('bin', const.PHAROS_VERSION), deploy_bin_dir)
                 if self.chain_protocol == const.PROTOCOL_EVM or self.chain_protocol == const.PROTOCOL_ALL:
                     if backup:
                         conn.run(f'mv {deploy_bin_dir}/{const.EVMONE_SO} {deploy_bin_dir}/{const.EVMONE_SO}_bak')
@@ -681,12 +681,12 @@ class Composer(object):
                         conn.run(cmd)
 
                 # link VERSION
-                # source = join(self.deploy_dir, 'bin', const.PHAROS_VERSION)
-                # target = join(instance.dir, 'bin')
-                # cmd = command.ln_sf_check(source, target)
-                # if cmd != '':
-                #     logs.info(cmd)
-                #     conn.run(cmd)
+                source = join(self.deploy_dir, 'bin', const.PHAROS_VERSION)
+                target = join(instance.dir, 'bin')
+                cmd = command.ln_sf_check(source, target)
+                if cmd != '':
+                    logs.info(cmd)
+                    conn.run(cmd)
 
     def deploy_host_conf(self, conn: Connection, service=None):
         instances = self._instances(service).get(conn.host, [])
@@ -797,8 +797,8 @@ class Composer(object):
             'bin', const.PHAROS_CLI), common_cli_bin_dir)
         local.sync(self._build_file(
             'bin', const.EVMONE_SO), common_cli_bin_dir)
-        # local.sync(self._build_file(
-        #     'bin', const.PHAROS_VERSION), common_cli_bin_dir)
+        local.sync(self._build_file(
+            'bin', const.PHAROS_VERSION), common_cli_bin_dir)
         local.sync(self._build_file(
             'bin', const.ETCD_CTL_BIN), common_cli_bin_dir)
         local.sync(self._build_file(
@@ -823,13 +823,13 @@ class Composer(object):
         cli_conf_dir = join(self.local_client_dir, 'conf')
         local.run(f'cd {cli_bin_dir};ln -sf ../../../bin/{const.PHAROS_CLI}')
         local.run(f'cd {cli_bin_dir};ln -sf ../../../bin/{const.EVMONE_SO}')
-        # local.run(f'cd {cli_bin_dir};ln -sf ../../../bin/{const.PHAROS_VERSION}')
+        local.run(f'cd {cli_bin_dir};ln -sf ../../../bin/{const.PHAROS_VERSION}')
         local.run(f'cd {cli_bin_dir};ln -sf ../../../bin/{const.ETCD_CTL_BIN}')
         local.run(f'cd {cli_bin_dir};ln -sf ../../../bin/{const.SVC_META_TOOL}')
 
         local.sync(self._build_file('bin', const.PHAROS_CLI), cli_bin_dir, '-avL')
         local.sync(self._build_file('bin', const.EVMONE_SO), cli_bin_dir, '-avL')
-        # local.sync(self._build_file('bin', const.PHAROS_VERSION), cli_bin_dir)
+        local.sync(self._build_file('bin', const.PHAROS_VERSION), cli_bin_dir, '-avL')
         local.sync(self._build_file('bin', const.ETCD_CTL_BIN), cli_bin_dir, '-avL')
         local.sync(self._build_file('bin', const.SVC_META_TOOL), cli_bin_dir, '-avL')
         local.sync(self._domain.genesis_conf, cli_conf_dir)

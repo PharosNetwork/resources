@@ -301,7 +301,7 @@ def upgrade():
     files_to_remove = [
         f"{deploy_path}/domain/light/bin/libevmone.so",
         f"{deploy_path}/domain/light/bin/pharos_light",
-        # f"{deploy_path}/domain/light/bin/VERSION",
+        f"{deploy_path}/domain/light/bin/VERSION",
         f"{deploy_path}/domain/client/bin/pharos_cli",
     ]
     for file_path in files_to_remove:
@@ -317,10 +317,10 @@ def upgrade():
             f"{original_cwd}/../bin/pharos_light",
             f"{deploy_path}/domain/light/bin/pharos_light",
         ),
-        # (
-        #     f"{original_cwd}/../bin/VERSION",
-        #     f"{deploy_path}/domain/light/bin/VERSION",
-        # ),
+        (
+            f"{original_cwd}/../bin/VERSION",
+            f"{deploy_path}/domain/light/bin/VERSION",
+        ),
     ]
     for src, dst in symlinks:
         if os.path.lexists(dst):
