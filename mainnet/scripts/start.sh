@@ -10,7 +10,7 @@ if [ ! -d /data/pharos-node ]; then
     cd /app/scripts
 
     sed -i "s/\"host\": \"127.0.0.1\"/\"host\": \"$external_ip\"/" /app/scripts/deploy.light.json
-    /root/.local/bin/pipenv run pharos --no-debug generate /app/scripts/deploy.light.json
+    /root/.local/bin/pipenv run pharos --no-debug generate --key_passwd=$CONSENSUS_KEY_PWD /app/scripts/deploy.light.json
     /bin/cp -rf /app/scripts/resources /data
     sed -i 's|\"../conf/genesis.pharos-node.conf\"|\"/data/genesis.conf\"|g' /app/scripts/domain.json
     /bin/cp -f domain.json /data/
