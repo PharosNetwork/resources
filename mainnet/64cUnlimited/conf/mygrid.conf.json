@@ -1,0 +1,66 @@
+{
+  "log": {
+    "pamir": {
+      "filename": "../log/pamir.log",
+      "max_file_size": 104857600,
+      "max_files": 100,
+      "level": "info"
+    }
+  },
+  "config": {
+    "metrics": {
+      "pamir_enable_cetina": false,
+      "pamir_cetina_push_address": "prometheus-prometheus-pushgateway.prometheus-agent-namespace.svc.cluster.local",
+      "pamir_cetina_push_port": 9091,
+      "pamir_cetina_job_name": "mygrid_pro_job",
+      "pamir_cetina_push_interval_second": 1,
+      "pamir_cetina_instance_name": "mygrid_pro"
+    },
+    "mygrid": {
+      "user_flags": {
+        "letus_merkle_enable_memory_page_lru_cache": true,
+        "letus_merkle_index_memory_page_lru_cache_max_size_each_db": 2147483648,
+        "letus_merkle_state_tree_write_cache": false,
+        "letus_merkle_state_tree_read_cache": false,
+        "letus_data_dredger_scheduler_stop": true,
+        "letus_enable_merge_delta": false,
+        "mygrid_enable_online_admin": true
+      },
+      "expert_flags": {
+        "letus_active_mem_index_table_max_memory_size": 33554432,
+        "letus_persist_index_block_lru_cache_max_size": 33554432,
+        "pamir_enable_rocksdb_metrics": true,
+        "mygrid_client_enable_callback_thread_pool": true,
+        "mygrid_client_network_thread_num": 32,
+        "storage_kernel_bg_thread_count": 32,
+        "letus_env_local_file_bg_thread_count": 32,
+        "letus_l0_index_files_size_threshold": 33554432,
+        "storage_kernel_rocks_write_buffer_size": 33554432,
+        "storage_kernel_rocks_max_write_buffer_number": 8,
+        "storage_kernel_rocksdb_global_rate_limiter_rate_bytes_per_sec": 67108864,
+        "storage_kernel_rocksdb_global_rate_limiter_mode": 2,
+        "mygrid_client_open_flat_kv_cache": true,
+        "mygrid_flat_cache_partition_capacity": 268435456,
+        "mygrid_client_grid_thread_num": 32,
+        "mygrid_master_to_server_auto_prune_period_us": 1800000000,
+        "letus_merkle_enable_trie_logical_page_release": true,
+        "letus_batch_update_logical_page_size": 50000,
+        "letus_prune_compaction_max_concurrent_count": 8,
+        "letus_max_file_count_for_prune_compaction": 6,
+        "letus_slow_index_file_read": 100000,
+        "letus_io_throttle_rw_bps": 209715200,
+        "letus_merkle_split_high_watermark": 128,
+        "letus_merkle_merge_low_watermark": 64,
+        "letus_merkle_trie_l0_base_page_ckp": 1024,
+        "letus_merkle_trie_l0_delta_page_ckp": 512,
+        "letus_merkle_trie_l1_base_page_ckp": 256,
+        "letus_merkle_trie_l1_delta_page_ckp": 128,
+        "letus_merkle_trie_ln_base_page_ckp": 8,
+        "letus_merkle_trie_ln_delta_page_ckp": 4,
+
+        "mygrid_client_open_history_kv_cache": true,
+        "mygrid_client_history_kv_full_cache": true
+      }
+    }
+  }
+}
