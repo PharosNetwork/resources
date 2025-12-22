@@ -38,7 +38,7 @@ from tempfile import NamedTemporaryFile
 
 from pharos_ops.toolkit import command, svc, const, logs, utils
 from pharos_ops.toolkit.schemas.domain import *
-from pharos_ops.toolkit.schemas.pharos import *
+from pharos_ops.toolkit.schemas.aldaba import *
 from pharos_ops.toolkit.conn_group import is_local, ConcurrentGroup, local
 from pharos_ops.toolkit.utils import safe_get_nested
 from pharos_ops.toolkit.conf import Generator
