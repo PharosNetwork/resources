@@ -15,7 +15,7 @@ class SecretFiles(object):
 @dataclass
 class Secret(object):
     domain: SecretFiles = field(default_factory=SecretFiles, metadata={'required': True})
-    client: SecretFiles = field(default_factory=SecretFiles, metadata={'required': False})
+    # client: SecretFiles = field(default_factory=SecretFiles, metadata={'required': False})
 
     class Meta:
         ordered: bool = True
@@ -29,20 +29,12 @@ class Docker(object):
         ordered: bool = True
 
 @dataclass
-class Metrics(object):
-    enable: bool = field(default=False, metadata={'required': True})
-    push_address: str = field(default='', metadata={'required': True})
-    push_port: str = field(default='', metadata={'required': True})
-    job_name: str = field(default='', metadata={'required': True})
-    push_interval: str = field(default='', metadata={'required': True})
-
-@dataclass
 class Common(object):
     env: Dict[str, str] = field(default_factory=dict, metadata={'required': False})
     log: Dict[str, Optional[Any]] = field(default_factory=dict, metadata={'required': False})
     config: Dict[str, Optional[Any]] = field(default_factory=dict, metadata={'required': False})
     gflags: Dict[str, str] = field(default_factory=dict, metadata={'required': False})
-    metrics: Metrics = field(default_factory=Metrics)
+    monitor_config: Dict[str, Optional[Any]] = field(default_factory=dict, metadata={'required': False})
 
     class Meta:
         ordered: bool = True
@@ -55,9 +47,9 @@ class Instance(object):
     dir: str = field(default='', metadata={'required': False})      # 默认为$deploy_dir/$instance_name, 支持分别指定
     args: List[str] = field(default_factory=list, metadata={'required': False})
     env: Dict[str, str] = field(default_factory=dict, metadata={'required': False})
-    log: Dict[str, Optional[Any]] = field(default_factory=dict, metadata={'required': False})
-    config: Dict[str, Optional[Any]] = field(default_factory=dict, metadata={'required': False})
-    gflags: Dict[str, str] = field(default_factory=dict, metadata={'required': False})
+    # log: Dict[str, Optional[Any]] = field(default_factory=dict, metadata={'required': False})
+    # config: Dict[str, Optional[Any]] = field(default_factory=dict, metadata={'required': False})
+    # gflags: Dict[str, str] = field(default_factory=dict, metadata={'required': False})
 
     class Meta:
         ordered: bool = True
@@ -75,10 +67,10 @@ class Domain(object):
     run_user: str = field(default='', metadata={'required': True})
     deploy_dir: str = field(default='', metadata={'required': True})
     genesis_conf: str = field(default='../conf/genesis.conf', metadata={'required': True})
+    running_conf: str = field(default='../conf/aldaba.tpl.conf', metadata={'required': True})
     mygrid: MyGridConfig = field(default_factory=MyGridConfig, metadata={'required': True})
     secret: Secret = field(default_factory=Secret, metadata={'required': True})
     use_generated_keys : bool = field(default=False, metadata={'required': False})
-    enable_dora : bool = field(default=False, metadata={'required': False})
     key_passwd : str = field(default='123abc', metadata={'required': False})
     portal_ssl_pass : str = field(default='123abc', metadata={'required': False})
     enable_setkey_env: bool = field(default=True, metadata={'required': False}) # 设置pass env开关，默认打开    

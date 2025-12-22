@@ -13,8 +13,7 @@ def is_local(host: str):
     return host in ['127.0.0.1', 'localhost']
 
 def sync(conn :Context, source :str, target :str, rsync_opts :str='-avzL'):
-    # cmd = f'rsync {rsync_opts} {source} {conn.user}@{conn.host}:{target}'
-    cmd = f'cp -aLv {source} {target}'
+    cmd = f'rsync {rsync_opts} {source} {conn.user}@{conn.host}:{target}'
     logs.debug(cmd)
     return conn.local(cmd)
 
@@ -48,8 +47,7 @@ class LocalConnection(Context):
         return super().run(command, **kwargs)
 
     def sync(self, source, target, rsync_opts='-av'):
-        # return self.run(f'rsync {rsync_opts} {source} 127.0.0.1:{target}')
-        return self.run(f'cp -aLv {source} {target}') 
+        return self.run(f'rsync {rsync_opts} {source} 127.0.0.1:{target}')
 
     def clean_folder(self, folder: str, except_: str=None):
         if not os.path.exists(folder):

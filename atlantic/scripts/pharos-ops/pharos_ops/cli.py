@@ -18,12 +18,8 @@ import os
 import sys
 import base64
 import click
-import ipaddress
-import json
-from .toolkit.schemas import DeploySchema
 
-
-B_LOGO = b'ICBfX19fICBfICAgXyAgICBfICAgIF9fX18gICBfX18gIF9fX18gIAogfCAgXyBcfCB8IHwgfCAgLyBcICB8ICBfIFwgLyBfIFwvIF9fX3wgCiB8IHxfKSB8IHxffCB8IC8gXyBcIHwgfF8pIHwgfCB8IFxfX18gXCAKIHwgIF9fL3wgIF8gIHwvIF9fXyBcfCAgXyA8fCB8X3wgfF9fXykgfAogfF98ICAgfF98IHxfL18vICAgXF9cX3wgXF9cXF9fXy98X19fXy8gCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAK'
+B_LOGO = b'ICAgX19fX18gIC5fXyAgICAgICAuX19fICAgICBfX18uICAgICAgICAgICAgX19fX19fX18gX19fX19fX19fXyAgX19fX19fX19fCiAgLyAgXyAgXCB8ICB8ICAgIF9ffCBfL19fX18gXF8gfF9fIF9fX19fICAgIFxfX19fXyAgXFxfX19fX18gICBcLyAgIF9fX19fLwogLyAgL19cICBcfCAgfCAgIC8gX18gfFxfXyAgXCB8IF9fIFxcX18gIFwgICAgLyAgIHwgICBcfCAgICAgX19fL1xfX19fXyAgXCAKLyAgICB8ICAgIFwgIHxfXy8gL18vIHwgLyBfXyBcfCBcX1wgXC8gX18gXF8gLyAgICB8ICAgIFwgICAgfCAgICAvICAgICAgICBcClxfX19ffF9fICAvX19fXy9cX19fXyB8KF9fX18gIC9fX18gIChfX19fICAvIFxfX19fX19fICAvX19fX3wgICAvX19fX19fXyAgLwogICAgICAgIFwvICAgICAgICAgICBcLyAgICAgXC8gICAgXC8gICAgIFwvICAgICAgICAgIFwvICAgICAgICAgICAgICAgICBcLyA='
 
 
 @click.group()
@@ -37,17 +33,9 @@ def cli(debug):
 
 @cli.command(help='Generate domain files')
 @click.argument('deploy_file', default='deploy.json', type=click.Path(exists=True))
-@click.option("--genesis", "-g", is_flag=True, help="need generate genesis")
-@click.option("--key_passwd", default="", help="key passwd")
-def generate(deploy_file,genesis,key_passwd):
+def generate(deploy_file):
     click.echo(click.format_filename(deploy_file))
-    entrance.generate(deploy_file, genesis, key_passwd)
-
-@cli.command(help="Generate genesis files")
-@click.argument("deploy_file", default="deploy.json", type=click.Path(exists=True))
-def generate_genesis(deploy_file):
-    click.echo(click.format_filename(deploy_file))
-    entrance.generate_genesis(deploy_file)
+    entrance.generate(deploy_file)
 
 
 #  @cli.command(context_settings={"ignore_unknown_options": True}, help='Deploy with $domain_label.json')
@@ -116,20 +104,22 @@ def add_domain(src_domain, dest_domains, cold, backup):
 @cli.command(help='Change a non validator domain to validator domain')
 @click.option('--endpoint', type=str, required=True)
 @click.option('--key', type=str, default='fcfc69bd0056a2592e1f46cfba8264d8918fe98ecf5a2ef43aaa4ed1463725e1')
+@click.option('--no-prefix', type=bool, default=False)
 @click.argument('domains', nargs=-1, type=click.Path(exists=True), required=True)
-def add_validator(endpoint, key, domains):
+def add_validator(endpoint, key, no_prefix, domains):
     for domain_file in domains:
         click.echo(click.format_filename(domain_file))
-    entrance.add_validator(endpoint, key, domains)
+    entrance.add_validator(endpoint, key, no_prefix, domains)
     
 @cli.command(help='Change a validator domain to non validator domain')
 @click.option('--endpoint', type=str, required=True)
 @click.option('--key', type=str, default='fcfc69bd0056a2592e1f46cfba8264d8918fe98ecf5a2ef43aaa4ed1463725e1')
+@click.option('--no-prefix', type=bool, default=False)
 @click.argument('domains', nargs=-1, type=click.Path(exists=True), required=True)
-def exit_validator(endpoint, key, domains):
+def exit_validator(endpoint, key, no_prefix, domains):
     for domain_file in domains:
         click.echo(click.format_filename(domain_file))
-    entrance.exit_validator(endpoint, key, domains)
+    entrance.exit_validator(endpoint, key, no_prefix, domains)
 
 
 @cli.command(help='Clean with $domain_label.json')
@@ -329,43 +319,3 @@ def post_bvttest(job: str, branch: str, repo: str, user: str, workspace: str, pi
     ctx.deploy_mode = deploy_mode
     bvt.collect_logs(ctx)
     sys.exit(0)
-
-
-@cli.command(help="Set public ip")
-@click.argument("ip", envvar="PUBLIC_IP", default="127.0.0.1")
-@click.argument("deploy_file", default="deploy.light.json")
-def set_ip(ip: str, deploy_file: str):
-    if ip == "127.0.0.1":
-        logs.fatal("Please set public ip")
-        return
-    try:
-        ipaddress.ip_address(ip)
-    except ValueError as e:
-        logs.fatal(f"Invalid ip: {e}")
-        return
-    with open(deploy_file, "r") as fh:
-        deploy_data = json.load(fh)
-        deploy = DeploySchema().load(deploy_data)
-        for _, v in deploy.domains.items():
-            for d in v.cluster:
-                d.host = ip
-        with open(deploy_file, "w") as fh:
-            json.dump(DeploySchema().dump(deploy), fh, indent=2)
-    logs.info(f"Set public ip to {ip}")
-
-@cli.command(help="Update validator domain")
-@click.option("--endpoint", type=str, required=True)
-@click.argument(
-    "key",
-    type=str,
-)
-@click.argument("poolid", type=str,required=True)
-@click.argument("new_owner", type=str,required=True)
-@click.argument("domains", nargs=-1, type=click.Path(exists=True), required=True)
-def update_validator(endpoint, key, poolid, domains,new_owner):
-    entrance.update_validator(endpoint, key, domains, poolid, new_owner)
-
-
-@cli.command(help="Upgrade pharos")
-def upgrade():
-    entrance.upgrade()

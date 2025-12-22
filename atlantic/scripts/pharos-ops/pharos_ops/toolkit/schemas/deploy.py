@@ -38,6 +38,7 @@ class Common(object):
     log: Dict[str, Optional[Any]] = field(default_factory=dict, metadata={'required': False})
     config: Dict[str, Optional[Any]] = field(default_factory=dict, metadata={'required': False})
     gflags: Dict[str, str] = field(default_factory=dict, metadata={'required': False})
+    monitor_config: Dict[str, Optional[Any]] = field(default_factory=dict, metadata={'required': False})
 
     class Meta:
         ordered: bool = True
@@ -56,9 +57,9 @@ class DomainSummary(object):
     key_passwd : str = field(default='', metadata={'required': False})
     portal_ssl_pass : str = field(default='', metadata={'required': False})
     domain_port: int = field(default=19000, metadata={'required': True})
-    client_tcp_port: int = field(default=18000, metadata={'required': True})
+    # client_tcp_port: int = field(default=18000, metadata={'required': True})
     client_ws_port: int = field(default=0, metadata={'required': False})
-    client_wss_port: int = field(default=0, metadata={'required': False})
+    # client_wss_port: int = field(default=0, metadata={'required': False})
     client_http_port: int = field(default=0, metadata={'required': False})
     cluster: List[Node] = field(default_factory=list, metadata={'required': True})
     initial_stake_in_gwei: int = field(default=1000000000, metadata={'required': False})
@@ -81,11 +82,11 @@ class Deploy(object):
     proxy_admin_addr: str = field(default='0278872d3f68b15156e486da1551bcd34493220d', metadata={'required': False})
     genesis_tpl: str = field(default='../conf/genesis.tpl.conf', metadata={'required': True})
     mygrid: MyGridConfig = field(default_factory=MyGridConfig, metadata={'required': True})
+    running_conf: str = field(default='../conf/aldaba.tpl.conf', metadata={'required': True})
     domain_key_type: str = field(default='', metadata={'required': True})
-    client_key_type: str = field(default='', metadata={'required': False})
+    # client_key_type: str = field(default='', metadata={'required': False})
     use_generated_keys : bool = field(default=False, metadata={'required': False})
     use_latest_version: bool = field(default=False, metadata={'required': False})
-    enable_dora : bool = field(default=False, metadata={'required': False})
     docker: Docker = field(default_factory=Docker, metadata={'required': True})
     common: Common = field(default_factory=Common, metadata={'required': False})
     pharos: Extra = field(default_factory=Extra, metadata={'required': False})  # FIXME: 后续删掉, 使用common
