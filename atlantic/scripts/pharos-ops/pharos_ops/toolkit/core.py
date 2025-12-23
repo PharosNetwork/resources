@@ -162,10 +162,10 @@ class Composer(object):
 
         # self.parse_metrics_config()
 
-        self._aldaba_conf_data = utils.load_json(self._domain.running_conf)
-        self._aldaba_conf: RootConfig = RootConfigSchema().load(self._aldaba_conf_data)
+        self._pharos_conf_data = utils.load_json(self._domain.running_conf)
+        self._pharos_conf: RootConfig = RootConfigSchema().load(self._pharos_conf_data)
 
-        self.update_aldaba_conf_by_domain()
+        self.update_pharos_conf_by_domain()
 
         self._extra_storage_start_args: str = ''
         self._is_light: bool = False
@@ -332,12 +332,12 @@ class Composer(object):
             self.meta_svc_dir = f'{self.meta_svc_dir}/data'
 
         # 配置 mygrid.env.json
-        # self._mygrid_env_json = self._aldaba_conf.storage.mygrid_env
+        # self._mygrid_env_json = self._pharos_conf.storage.mygrid_env
 
         if self._domain.mygrid.env.enable_adaptive:
-            self._aldaba_conf.storage.mygrid_env["mygrid_env"]["meta_store_disk"] = self.deploy_top_dir
-            self._aldaba_conf.storage.mygrid_env["mygrid_env"]["flat_kvdb_disk"] = self.deploy_top_dir
-            self._aldaba_conf.storage.mygrid_env["mygrid_env"]["project_data_path"] = self.meta_svc_dir
+            self._pharos_conf.storage.mygrid_env["mygrid_env"]["meta_store_disk"] = self.deploy_top_dir
+            self._pharos_conf.storage.mygrid_env["mygrid_env"]["flat_kvdb_disk"] = self.deploy_top_dir
+            self._pharos_conf.storage.mygrid_env["mygrid_env"]["project_data_path"] = self.meta_svc_dir
 
             # ultra, TODO......
             if self._is_light:
@@ -361,20 +361,20 @@ class Composer(object):
                 '''
 
             placements_json_obj = json.loads(placements_json_str)
-            self._aldaba_conf.storage.mygrid_env["mygrid_env"]["placements"] = placements_json_obj
+            self._pharos_conf.storage.mygrid_env["mygrid_env"]["placements"] = placements_json_obj
 
 
             mygrid_master_port = 23100 + (int(self._domain.domain_index) * 1000)
             mygrid_server_port = 23101 + (int(self._domain.domain_index) * 1000)
-            self._aldaba_conf.storage.mygrid_env["mygrid_env"]["master_lite_admin_port"] = mygrid_master_port
-            self._aldaba_conf.storage.mygrid_env["mygrid_env"]["server_lite_admin_port"] = mygrid_server_port
+            self._pharos_conf.storage.mygrid_env["mygrid_env"]["master_lite_admin_port"] = mygrid_master_port
+            self._pharos_conf.storage.mygrid_env["mygrid_env"]["server_lite_admin_port"] = mygrid_server_port
 
             if not self._is_light:
                 mygrid_service_ip = self.cluster[const.SERVICE_CONTROLLER].ip
-                self._aldaba_conf.storage.mygrid_env["mygrid_env"]["cluster"]["master"]["address"] = f'{mygrid_service_ip}:{mygrid_master_port}'
-                self._aldaba_conf.storage.mygrid_env["mygrid_env"]["cluster"]["servers"][0]["address"] = f'{mygrid_service_ip}:{mygrid_server_port}'
+                self._pharos_conf.storage.mygrid_env["mygrid_env"]["cluster"]["master"]["address"] = f'{mygrid_service_ip}:{mygrid_master_port}'
+                self._pharos_conf.storage.mygrid_env["mygrid_env"]["cluster"]["servers"][0]["address"] = f'{mygrid_service_ip}:{mygrid_server_port}'
         # 配置meta_service.conf
-        metasvc_path = f"{self._aldaba_conf.storage.mygrid_env['mygrid_env']['meta_store_disk']}/{self._aldaba_conf.storage.mygrid_env['mygrid_env']['project_data_path']}"
+        metasvc_path = f"{self._pharos_conf.storage.mygrid_env['mygrid_env']['meta_store_disk']}/{self._pharos_conf.storage.mygrid_env['mygrid_env']['project_data_path']}"
         etcd_conf = self._meta_conf[const.META_SERVICE_CONFIG_NAME]['etcd']
         if self._is_light:
             self._meta_conf[const.META_SERVICE_CONFIG_NAME]['data_path'] = f'{metasvc_path}'
@@ -443,19 +443,19 @@ class Composer(object):
                 # 直接覆盖
                 base_dict[key] = value
 
-    def update_aldaba_conf_by_domain(self):
+    def update_pharos_conf_by_domain(self):
         for key, value in self._domain.common.env.items():
             full_key = f"/SetEnv/{key}"
-            self._aldaba_conf.aldaba.startup_config.parameters[full_key] = value
+            self._pharos_conf.aldaba.startup_config.parameters[full_key] = value
 
-        self.deep_merge(self._aldaba_conf.aldaba.startup_config.log,self._domain.common.log)
-        self.deep_merge(self._aldaba_conf.aldaba.startup_config.config,self._domain.common.config)
+        self.deep_merge(self._pharos_conf.aldaba.startup_config.log,self._domain.common.log)
+        self.deep_merge(self._pharos_conf.aldaba.startup_config.config,self._domain.common.config)
 
         for key, value in self._domain.common.gflags.items():
             full_key = f"/GlobalFlag/{key}"
-            self._aldaba_conf.aldaba.startup_config.parameters[full_key] = value
+            self._pharos_conf.aldaba.startup_config.parameters[full_key] = value
         
-        self.deep_merge(self._aldaba_conf.aldaba.monitor_config,self._domain.common.monitor_config)
+        self.deep_merge(self._pharos_conf.aldaba.monitor_config,self._domain.common.monitor_config)
 
 
     @property
@@ -590,8 +590,8 @@ class Composer(object):
         logs.info(f'clean {instance_name} on {conn.host}, is clean meta : {clean_meta}')
         instance = self.cluster[instance_name]
 
-        mygrid_placements = extract_mygrid_placements(self._aldaba_conf.storage.mygrid_env)
-        metasvc_path = f"{self._aldaba_conf.storage.mygrid_env['mygrid_env']['meta_store_disk']}/{self._aldaba_conf.storage.mygrid_env['mygrid_env']['project_data_path']}"
+        mygrid_placements = extract_mygrid_placements(self._pharos_conf.storage.mygrid_env)
+        metasvc_path = f"{self._pharos_conf.storage.mygrid_env['mygrid_env']['meta_store_disk']}/{self._pharos_conf.storage.mygrid_env['mygrid_env']['project_data_path']}"
         logs.info(f'clean {mygrid_placements} {metasvc_path} on {conn.host}')
         for placement in mygrid_placements:
             if clean_meta:
@@ -747,16 +747,16 @@ class Composer(object):
 
             self._mygrid_client_conf[const.MYGRID_CONFIG_NAME]['mygrid_client_id'] = f'light'
            
-            aldaba_conf_file = join(instance.dir, 'conf/aldaba.conf')
+            pharos_conf_file = join(instance.dir, 'conf/pharos.conf')
 
             if self.cluster[instance.name].service not in [const.SERVICE_ETCD, const.SERVICE_STORAGE]:
-                self._aldaba_conf.aldaba.startup_config.init_config = self._cli_conf
+                self._pharos_conf.aldaba.startup_config.init_config = self._cli_conf
                 for k, v in instance.env.items():
-                    self._aldaba_conf.aldaba.startup_config.parameters[f'/SetEnv/{k}'] = v
-                self._aldaba_conf.aldaba.startup_config.parameters["/SetEnv/CHAIN_ID"]=self._domain.chain_id
-                self._aldaba_conf.aldaba.startup_config.parameters["/SetEnv/DOMAIN_LABEL"] =self._domain.domain_label
-                self._aldaba_conf.aldaba.startup_config.parameters["/SetEnv/SERVICE"] = instance.service
-            self._aldaba_conf.aldaba.startup_config.config["service"]["inner_debug_url"]=increment_port(self._aldaba_conf.aldaba.startup_config.config["service"]["inner_debug_url"],self._domain.domain_index)             
+                    self._pharos_conf.aldaba.startup_config.parameters[f'/SetEnv/{k}'] = v
+                self._pharos_conf.aldaba.startup_config.parameters["/SetEnv/CHAIN_ID"]=self._domain.chain_id
+                self._pharos_conf.aldaba.startup_config.parameters["/SetEnv/DOMAIN_LABEL"] =self._domain.domain_label
+                self._pharos_conf.aldaba.startup_config.parameters["/SetEnv/SERVICE"] = instance.service
+            self._pharos_conf.aldaba.startup_config.config["service"]["inner_debug_url"]=increment_port(self._pharos_conf.aldaba.startup_config.config["service"]["inner_debug_url"],self._domain.domain_index)             
             # # generate launch.conf
             # if self.cluster[instance.name].service not in [const.SERVICE_ETCD, const.SERVICE_STORAGE]:
             #     launch_conf_file = join(instance.dir, 'conf/launch.conf')
@@ -780,10 +780,10 @@ class Composer(object):
                 #     cubenet_conf_data['cubenet']['p2p']['host'][0]['port'] =  str(int(port_str)+ port_offset)
                 #     cubenet_conf_file = join(instance.dir, 'conf/cubenet.conf')
                 #     self._dump_json(cubenet_conf_file, cubenet_conf_data, conn=conn)
-                self._aldaba_conf.cubenet.cubenet.p2p["nid"] = self.cluster[instance.name].env["NODE_ID"]
+                self._pharos_conf.cubenet.cubenet.p2p["nid"] = self.cluster[instance.name].env["NODE_ID"]
                 port_str = self.cluster[instance.name].env["DOMAIN_LISTEN_URLS0"].split(':')[-1]
-                port_offset = int(self._aldaba_conf.aldaba.startup_config.config["cubenet"]["port_offset"])
-                self._aldaba_conf.cubenet.cubenet.p2p['host'][0]['port'] =  str(int(port_str)+ port_offset)
+                port_offset = int(self._pharos_conf.aldaba.startup_config.config["cubenet"]["port_offset"])
+                self._pharos_conf.cubenet.cubenet.p2p['host'][0]['port'] =  str(int(port_str)+ port_offset)
                     # Only handle cubenet service, write light subsequently uniformly
                 if self.cluster[instance.name].service == const.SERVICE_DOG:
                     key_file = 'generate.key' if self._domain.use_generated_keys else 'new.key'
@@ -792,10 +792,10 @@ class Composer(object):
                     cubenet_certs_dir = join(instance.dir, 'certs/')
                     conn.sync(self._build_file(f'scripts/resources/domain_keys/prime256v1/{self._domain.domain_label}/{key_file}'), join(cubenet_certs_dir, target_key_file))
             
-            self._aldaba_conf.aldaba.secret_config.domain_key= f'{to_base64(self.domain_secret.files["key"])}'
-            self._aldaba_conf.aldaba.secret_config.stabilizing_key= f'{to_base64(self.domain_secret.files["stabilizing_key"])}'
+            self._pharos_conf.aldaba.secret_config.domain_key= f'{to_base64(self.domain_secret.files["key"])}'
+            self._pharos_conf.aldaba.secret_config.stabilizing_key= f'{to_base64(self.domain_secret.files["stabilizing_key"])}'
             
-            self._dump_json(aldaba_conf_file, RootConfigSchema().dump(self._aldaba_conf), conn=conn)
+            self._dump_json(pharos_conf_file, RootConfigSchema().dump(self._pharos_conf), conn=conn)
 
             # Two sets of key pairs are copied to the deployment path.
             if self.cluster[instance.name].service == const.SERVICE_LIGHT:             
@@ -851,7 +851,7 @@ class Composer(object):
 
         # 非自适应时，创建meta存放目录
         if not self._domain.mygrid.env.enable_adaptive:
-            self._make_workspace(self._aldaba_conf.storage.mygrid_env['mygrid_env']["meta_store_disk"], self._aldaba_conf.storage.mygrid_env['mygrid_env']["project_data_path"], conn=conn)
+            self._make_workspace(self._pharos_conf.storage.mygrid_env['mygrid_env']["meta_store_disk"], self._pharos_conf.storage.mygrid_env['mygrid_env']["project_data_path"], conn=conn)
 
 
     def deploy_local_cli(self):
@@ -939,7 +939,7 @@ class Composer(object):
 
         # dump cli.conf 用于pharos_cli
         # utils.dump_json(join(cli_bin_dir, 'cli.conf'), self._cli_conf)
-        self._dump_json(join(cli_conf_dir, 'aldaba.conf'), RootConfigSchema().dump(self._aldaba_conf))
+        self._dump_json(join(cli_conf_dir, 'pharos.conf'), RootConfigSchema().dump(self._pharos_conf))
 
 
     # def initialize_conf(self, conn: Context): #改动
@@ -1069,7 +1069,7 @@ class Composer(object):
             logs.error('Domain clone only support light mode for now')
             return
         (src_placements_map, project_data_path) = (
-            extract_mygrid_placements_with_key(json.dumps(self._aldaba_conf.storage.mygrid_env))
+            extract_mygrid_placements_with_key(json.dumps(self._pharos_conf.storage.mygrid_env))
         )
         if is_cold:
             # stop domain
@@ -1129,7 +1129,7 @@ class Composer(object):
 
         # collect target domain placement
         (dst_placements, dst_project_data_path) = (
-        extract_mygrid_placements_with_key(json.dumps(self._aldaba_conf.storage.mygrid_env))
+        extract_mygrid_placements_with_key(json.dumps(self._pharos_conf.storage.mygrid_env))
         )
         (src_placements, src_project_data_path) = src_placement
 
@@ -2050,7 +2050,7 @@ class Composer(object):
         else:
             work_dir = join(instance.dir, 'bin')
             binary = self._instance_bin(instance)
-            if exists(conn, join(instance.dir, 'conf/aldaba.conf')):
+            if exists(conn, join(instance.dir, 'conf/pharos.conf')):
                 if self.is_light:
                     if self.chain_protocol == const.PROTOCOL_EVM or self.chain_protocol == const.PROTOCOL_ALL:
                         cmd = f"cd {work_dir}; LD_PRELOAD=./{const.EVMONE_SO} ./{binary} -d"

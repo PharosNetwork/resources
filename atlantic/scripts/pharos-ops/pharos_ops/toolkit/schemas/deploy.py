@@ -82,7 +82,7 @@ class Deploy(object):
     proxy_admin_addr: str = field(default='0278872d3f68b15156e486da1551bcd34493220d', metadata={'required': False})
     genesis_tpl: str = field(default='../conf/genesis.tpl.conf', metadata={'required': True})
     mygrid: MyGridConfig = field(default_factory=MyGridConfig, metadata={'required': True})
-    running_conf: str = field(default='../conf/aldaba.tpl.conf', metadata={'required': True})
+    running_conf: str = field(default='../conf/pharos.tpl.conf', metadata={'required': True})
     domain_key_type: str = field(default='', metadata={'required': True})
     # client_key_type: str = field(default='', metadata={'required': False})
     use_generated_keys : bool = field(default=False, metadata={'required': False})

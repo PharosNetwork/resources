@@ -67,7 +67,7 @@ class Domain(object):
     run_user: str = field(default='', metadata={'required': True})
     deploy_dir: str = field(default='', metadata={'required': True})
     genesis_conf: str = field(default='../conf/genesis.conf', metadata={'required': True})
-    running_conf: str = field(default='../conf/aldaba.tpl.conf', metadata={'required': True})
+    running_conf: str = field(default='../conf/pharos.tpl.conf', metadata={'required': True})
     mygrid: MyGridConfig = field(default_factory=MyGridConfig, metadata={'required': True})
     secret: Secret = field(default_factory=Secret, metadata={'required': True})
     use_generated_keys : bool = field(default=False, metadata={'required': False})

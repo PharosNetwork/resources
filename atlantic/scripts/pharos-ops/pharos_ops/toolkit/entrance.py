@@ -32,7 +32,7 @@ def catch_exception(fn):
 @catch_exception
 def generate(deploy_file: str):
     """
-    Command: aldaba-ops configure
+    Command: pharos-ops configure
     """
 
     generator = conf.Generator(deploy_file)
@@ -42,7 +42,7 @@ def generate(deploy_file: str):
 @catch_exception
 def deploy(domain_files: str, service: str):
     """
-    Command: aldaba-ops deploy
+    Command: pharos-ops deploy
     """
     # TODO 多domain_files部署的时候，确保所有domain_files的chain_id/genesis.conf一致, domain_label不冲突
     if len(domain_files) == 1:
