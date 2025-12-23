@@ -18,6 +18,9 @@ import os
 import sys
 import base64
 import click
+import ipaddress
+import json
+from pharos_ops.toolkit.schemas import DeploySchema
 
 B_LOGO = b'ICAgX19fX18gIC5fXyAgICAgICAuX19fICAgICBfX18uICAgICAgICAgICAgX19fX19fX18gX19fX19fX19fXyAgX19fX19fX19fCiAgLyAgXyAgXCB8ICB8ICAgIF9ffCBfL19fX18gXF8gfF9fIF9fX19fICAgIFxfX19fXyAgXFxfX19fX18gICBcLyAgIF9fX19fLwogLyAgL19cICBcfCAgfCAgIC8gX18gfFxfXyAgXCB8IF9fIFxcX18gIFwgICAgLyAgIHwgICBcfCAgICAgX19fL1xfX19fXyAgXCAKLyAgICB8ICAgIFwgIHxfXy8gL18vIHwgLyBfXyBcfCBcX1wgXC8gX18gXF8gLyAgICB8ICAgIFwgICAgfCAgICAvICAgICAgICBcClxfX19ffF9fICAvX19fXy9cX19fXyB8KF9fX18gIC9fX18gIChfX19fICAvIFxfX19fX19fICAvX19fX3wgICAvX19fX19fXyAgLwogICAgICAgIFwvICAgICAgICAgICBcLyAgICAgXC8gICAgXC8gICAgIFwvICAgICAgICAgIFwvICAgICAgICAgICAgICAgICBcLyA='
 
@@ -319,3 +322,42 @@ def post_bvttest(job: str, branch: str, repo: str, user: str, workspace: str, pi
     ctx.deploy_mode = deploy_mode
     bvt.collect_logs(ctx)
     sys.exit(0)
+
+@cli.command(help="Set public ip")
+@click.argument("ip", envvar="PUBLIC_IP", default="127.0.0.1")
+@click.argument("deploy_file", default="deploy.light.json")
+def set_ip(ip: str, deploy_file: str):
+    if ip == "127.0.0.1":
+        logs.fatal("Please set public ip")
+        return
+    try:
+        ipaddress.ip_address(ip)
+    except ValueError as e:
+        logs.fatal(f"Invalid ip: {e}")
+        return
+    with open(deploy_file, "r") as fh:
+        deploy_data = json.load(fh)
+        deploy = DeploySchema().load(deploy_data)
+        for _, v in deploy.domains.items():
+            for d in v.cluster:
+                d.host = ip
+        with open(deploy_file, "w") as fh:
+            json.dump(DeploySchema().dump(deploy), fh, indent=2)
+    logs.info(f"Set public ip to {ip}")
+
+@cli.command(help="Update validator domain")
+@click.option("--endpoint", type=str, required=True)
+@click.argument(
+    "key",
+    type=str,
+)
+@click.argument("poolid", type=str,required=True)
+@click.argument("new_owner", type=str,required=True)
+@click.argument("domains", nargs=-1, type=click.Path(exists=True), required=True)
+def update_validator(endpoint, key, poolid, domains,new_owner):
+    entrance.update_validator(endpoint, key, domains, poolid, new_owner)
+
+
+@cli.command(help="Upgrade pharos")
+def upgrade():
+    entrance.upgrade()
