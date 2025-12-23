@@ -8,7 +8,7 @@
   "admin_addr": "0x2cc298bdee7cfeac9b49f9659e2f3d637e149696",
   "proxy_admin_addr": "0x0278872d3f68b15156e486da1551bcd34493220d",
   "genesis_tpl": "../conf/genesis.tpl.conf",
-  "running_conf": "../conf/aldaba.tpl.conf",
+  "running_conf": "../conf/pharos.tpl.conf",
   "domain_key_type": "prime256v1",
   "use_generated_keys": true,
   "use_latest_version": false,
