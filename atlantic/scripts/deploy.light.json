@@ -1,12 +1,12 @@
 {
   "build_root": "../",
-  "chain_id": "aldaba-ng",
+  "chain_id": "pharos-node",
   "version": "2.0.0",
   "chain_protocol": "evm",
-  "run_user": "admin",
-  "deploy_root": "/tmp/aldaba-ng",
-  "admin_addr": "0x2cc298bdee7cfeac9b49f9659e2f3d637e149696",
-  "proxy_admin_addr": "0x0278872d3f68b15156e486da1551bcd34493220d",
+  "run_user": "root",
+  "deploy_root": "/data/pharos-node",
+  "admin_addr": "0x014de0228fbC3373adD6C0d1C195a0e22495f4D5",
+  "proxy_admin_addr": "0278872d3f68b15156e486da1551bcd34493220d",
   "genesis_tpl": "../conf/genesis.tpl.conf",
   "running_conf": "../conf/pharos.tpl.conf",
   "domain_key_type": "prime256v1",
@@ -54,8 +54,8 @@
     }
   },
   "domains": {
-    "domain0": {
-      "deploy_dir": "/tmp/aldaba-ng/domain0",
+    "domain": {
+      "deploy_dir": "",
       "domain_role": 0,
       "domain_port": 19000,
       "client_http_port": 18100,
@@ -68,7 +68,7 @@
           "instances": "light"
         }
       ],
-      "initial_stake_in_gwei": 1000000000000000
+      "initial_stake_in_gwei": 1000000000
     }
   }
 }
