@@ -20,7 +20,8 @@ import base64
 import click
 import ipaddress
 import json
-from pharos_ops.toolkit.schemas import DeploySchema
+from .toolkit.schemas import DeploySchema
+
 
 B_LOGO = b'ICBfX19fICBfICAgXyAgICBfICAgIF9fX18gICBfX18gIF9fX18gIAogfCAgXyBcfCB8IHwgfCAgLyBcICB8ICBfIFwgLyBfIFwvIF9fX3wgCiB8IHxfKSB8IHxffCB8IC8gXyBcIHwgfF8pIHwgfCB8IFxfX18gXCAKIHwgIF9fL3wgIF8gIHwvIF9fXyBcfCAgXyA8fCB8X3wgfF9fXykgfAogfF98ICAgfF98IHxfL18vICAgXF9cX3wgXF9cXF9fXy98X19fXy8gCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAK'
 
@@ -36,13 +37,14 @@ def cli(debug):
 
 @cli.command(help='Generate domain files')
 @click.argument('deploy_file', default='deploy.json', type=click.Path(exists=True))
-def generate(deploy_file):
+@click.option("--genesis", "-g", is_flag=True, help="need generate genesis")
+@click.option("--key_passwd", default="", help="key passwd")
+def generate(deploy_file,genesis,key_passwd):
     click.echo(click.format_filename(deploy_file))
-    entrance.generate(deploy_file)
+    entrance.generate(deploy_file, genesis, key_passwd)
 
-
-@cli.command(help='Generate genesis config file')
-@click.argument('deploy_file', default='deploy.json', type=click.Path(exists=True))
+@cli.command(help="Generate genesis files")
+@click.argument("deploy_file", default="deploy.json", type=click.Path(exists=True))
 def generate_genesis(deploy_file):
     click.echo(click.format_filename(deploy_file))
     entrance.generate_genesis(deploy_file)
@@ -114,22 +116,20 @@ def add_domain(src_domain, dest_domains, cold, backup):
 @cli.command(help='Change a non validator domain to validator domain')
 @click.option('--endpoint', type=str, required=True)
 @click.option('--key', type=str, default='fcfc69bd0056a2592e1f46cfba8264d8918fe98ecf5a2ef43aaa4ed1463725e1')
-@click.option('--no-prefix', type=bool, default=False)
 @click.argument('domains', nargs=-1, type=click.Path(exists=True), required=True)
-def add_validator(endpoint, key, no_prefix, domains):
+def add_validator(endpoint, key, domains):
     for domain_file in domains:
         click.echo(click.format_filename(domain_file))
-    entrance.add_validator(endpoint, key, no_prefix, domains)
+    entrance.add_validator(endpoint, key, domains)
     
 @cli.command(help='Change a validator domain to non validator domain')
 @click.option('--endpoint', type=str, required=True)
 @click.option('--key', type=str, default='fcfc69bd0056a2592e1f46cfba8264d8918fe98ecf5a2ef43aaa4ed1463725e1')
-@click.option('--no-prefix', type=bool, default=False)
 @click.argument('domains', nargs=-1, type=click.Path(exists=True), required=True)
-def exit_validator(endpoint, key, no_prefix, domains):
+def exit_validator(endpoint, key, domains):
     for domain_file in domains:
         click.echo(click.format_filename(domain_file))
-    entrance.exit_validator(endpoint, key, no_prefix, domains)
+    entrance.exit_validator(endpoint, key, domains)
 
 
 @cli.command(help='Clean with $domain_label.json')
@@ -329,6 +329,7 @@ def post_bvttest(job: str, branch: str, repo: str, user: str, workspace: str, pi
     ctx.deploy_mode = deploy_mode
     bvt.collect_logs(ctx)
     sys.exit(0)
+
 
 @cli.command(help="Set public ip")
 @click.argument("ip", envvar="PUBLIC_IP", default="127.0.0.1")

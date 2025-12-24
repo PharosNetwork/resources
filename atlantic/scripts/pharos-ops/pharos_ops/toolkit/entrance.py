@@ -17,6 +17,12 @@ from typing import List
 
 from pharos_ops.toolkit import conf, core, logs
 import traceback
+import subprocess
+import os
+from pharos_ops.toolkit.conn_group import local
+import shutil
+from .schemas import DeploySchema
+import json
 
 def catch_exception(fn):
     @wraps(fn)
@@ -30,24 +36,21 @@ def catch_exception(fn):
 
 
 @catch_exception
-def generate(deploy_file: str):
+def generate(deploy_file: str, need_genesis: bool = False, key_passwd: str = ""):
     """
     Command: pharos-ops configure
     """
 
-    generator = conf.Generator(deploy_file)
-    generator.run()
-
+    generator = conf.Generator(deploy_file, key_passwd)
+    generator.run(need_genesis)
 
 @catch_exception
 def generate_genesis(deploy_file: str):
     """
     Command: pharos-ops generate-genesis
     """
-
     generator = conf.Generator(deploy_file)
-    generator.run_genesis_only()
-
+    generator.generate_genesis()
 
 @catch_exception
 def deploy(domain_files: str, service: str):
@@ -126,37 +129,38 @@ def clone(src_domain: str, dest_domains: List[str], is_cold: bool, backup: bool)
     except Exception as e:
         error_msg = traceback.format_exc()
         print(error_msg)
-        
+
+
 @catch_exception
-def add_validator(endpoint, key, no_prefix, domains):
+def update_validator(endpoint, key, domains, poolId, new_owner):
+    """
+    Command: pharos-ops update-validator
+    """
+    for domain in domains:
+        composer = core.Composer(domain)
+        composer.update_validator(endpoint, key, poolId, new_owner)
+
+
+@catch_exception
+def add_validator(endpoint, key, domains):
     """
     Command: pharos-ops add-validator
     """
     for domain in domains:
         composer = core.Composer(domain)
-        composer.add_validator(endpoint, key, no_prefix)
+        composer.add_validator(endpoint, key)
     
 
 @catch_exception
-def exit_validator(endpoint, key, no_prefix, domains):
+def exit_validator(endpoint, key, domains):
     """
     Command: pharos-ops exit-validator
     """
     
     for domain in domains:
         compose = core.Composer(domain)
-        compose.exit_validator(endpoint, key, no_prefix)
-        
-@catch_exception
-def remove_validator_prefix(endpoint, key, domains):
-    """
-    Command: pharos-ops remove-validator-prefix
-    """
+        compose.exit_validator(endpoint, key)
     
-    for domain in domains:
-        composer = core.Composer(domain)        
-        compose.exit_validator(endpoint, key, False)
-        compose.add_validator(endpoint, key, True)    
 
 @catch_exception
 def clean(domain_files: str, service: str, all: bool):
@@ -279,3 +283,61 @@ def stop(domain_files: str, service: str, force=False):
     for domain_file in domain_files:
         composer = core.Composer(domain_file)
         composer.stop(service, force)
+
+
+@catch_exception
+def upgrade():
+    """
+    Command: pharos-ops upgrade
+    """
+    fh = open("./deploy.light.json", "r")
+    deploy_data = json.load(fh)
+    deploy = DeploySchema().load(deploy_data)
+
+    deploy_path = f"{deploy.deploy_root}"
+    original_cwd = os.getcwd()
+    logs.info(f"original_cwd: {original_cwd}")
+    logs.info(f"deploy_path: {deploy_path}")
+    files_to_remove = [
+        f"{deploy_path}/domain/light/bin/libevmone.so",
+        f"{deploy_path}/domain/light/bin/pharos_light",
+        f"{deploy_path}/domain/light/bin/VERSION",
+        f"{deploy_path}/domain/client/bin/pharos_cli",
+    ]
+    for file_path in files_to_remove:
+        if os.path.exists(file_path):
+            os.remove(file_path)
+
+    symlinks = [
+        (
+            f"{original_cwd}/../bin/libevmone.so",
+            f"{deploy_path}/domain/light/bin/libevmone.so",
+        ),
+        (
+            f"{original_cwd}/../bin/pharos_light",
+            f"{deploy_path}/domain/light/bin/pharos_light",
+        ),
+        (
+            f"{original_cwd}/../bin/VERSION",
+            f"{deploy_path}/domain/light/bin/VERSION",
+        ),
+    ]
+    for src, dst in symlinks:
+        if os.path.lexists(dst):
+            os.remove(dst)
+        os.symlink(src, dst)
+
+    try:
+        # shutil.copyfile(
+        #     f"{deploy_path}/domain/light/conf/monitor.conf",
+        #     f"{original_cwd}/../conf/monitor.conf",
+        # )
+
+        shutil.copyfile(
+            f"{original_cwd}/../bin/pharos_cli",
+            f"{deploy_path}/domain/client/bin/pharos_cli",
+        )
+    except Exception as e:
+        logs.error(f"Upgrade failed: {e}")
+    finally:
+        os.chdir(original_cwd)
