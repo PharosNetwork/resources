@@ -904,7 +904,7 @@ class Composer(object):
         if os.path.exists(self._domain.genesis_conf):
             local.sync(self._domain.genesis_conf, cli_conf_dir)
         else:
-            logs.warning(f'Genesis file {self._domain.genesis_conf} not found, skipping. Run generate-genesis command if needed.')
+            logs.warn(f'Genesis file {self._domain.genesis_conf} not found, skipping. Run generate-genesis command if needed.')
 
         # local.sync(self._build_file(
         #     'conf', 'resources/poke/node_config.json'), cli_bin_dir)
@@ -921,7 +921,7 @@ class Composer(object):
             local.sync(self._domain.genesis_conf,
                        join(cli_conf_dir, 'genesis.conf'))
         else:
-            logs.warning(f'Genesis file {self._domain.genesis_conf} not found, skipping genesis.conf copy.')
+            logs.warn(f'Genesis file {self._domain.genesis_conf} not found, skipping genesis.conf copy.')
 
         # if perf_succ:
         #     local.run(f'cd {cli_bin_dir};ln -sf ../../../bin/perf')
