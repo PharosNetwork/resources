@@ -904,6 +904,8 @@ class Composer(object):
         genesis_file = self._build_file('genesis.conf')
         if os.path.exists(genesis_file):
             local.sync(genesis_file, join(cli_conf_dir, 'genesis.conf'))
+            # Also copy to genesis.{chain_id}.conf for compatibility
+            local.sync(genesis_file, join(cli_conf_dir, f'genesis.{self._domain.chain_id}.conf'))
             logs.info(f'Copied genesis.conf from {genesis_file} to {cli_conf_dir}')
         else:
             logs.warn(f'Genesis file {genesis_file} not found in management directory')
