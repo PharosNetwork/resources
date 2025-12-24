@@ -927,153 +927,7 @@ class Generator(object):
             all_domain[domain_label] = self._generate_domain(
                 domain_label, info)
 
-        # 遍历所有domain，构建genesis.conf，输出domain file
-        genesis_domains = {}
-        domain_index = 0
-        storage_slot_kvs = {}
-        #stake = 1000000000000000000 # 1 ETH
-        GWEI_TO_WEI = 1000000000
-        total_stake_in_wei = 0
-        # timestamp = time.time_ns() // 1000000 # not supported until python 3.7
-        genesis_timestamp = int(round(time.time() * 1000))
-
-        for domain_label, domain in all_domain.items():
-            key_file = self._abspath(domain.secret.domain.files['key'])
-            stabilizing_pk_file = self._abspath(domain.secret.domain.files['stabilizing_pk'])
-
-            with open(stabilizing_pk_file, 'r') as spk_file:
-                spk = spk_file.read().strip()
-
-            # bls pop
-            spk_pop_file = stabilizing_pk_file.replace('.pub', '.pop')
-            with open(spk_pop_file, 'r') as pop_file:
-                spk_pop = pop_file.read().strip()
-
-            # r1 pop
-            pk_pop_file = key_file.replace('.key', '.pop')
-            with open(pk_pop_file, 'r') as pop_file:
-                pk_pop = pop_file.read().strip()
-            
-            try:
-                with open(domain.secret.domain.files.get('key_pub', "r")) as pk_file:
-                    pubkey = pk_file.readline().strip()
-                    pubkey_bytes = bytes.fromhex(f'{pubkey}')
-            except Exception as e:
-                # print(e)
-                pubkey, pubkey_bytes = Generator._get_pubkey(self._deploy.domain_key_type, key_file, domain.key_passwd)  
-            
-            node_id = hashlib.sha256(bytes(pubkey_bytes)).hexdigest()
-            
-            genesis_domains[domain_label] = {
-                'pubkey': f'0x{pubkey}',
-                'stabilizing_pubkey': spk,
-                'owner': 'root',
-                'endpoints': [f'{self._domain_endpoints[domain_label]}'],
-                'staking' : '200000000',
-                'commission_rate' : '10',
-                'node_id': node_id
-            }
-
-            # put proposer_id into env
-            for instance in domain.cluster.values():
-                instance.env["NODE_ID"] = node_id
-            domain_stake_in_wei = domain.initial_stake_in_gwei * GWEI_TO_WEI
-            domain_storage_slot = self._generate_domain_slots(len(all_domain),domain_index, pubkey, spk, self._domain_endpoints[domain_label], domain_stake_in_wei, public_key_pop=pk_pop, bls_pubkey_pop=spk_pop)
-            total_stake_in_wei += domain_stake_in_wei
-            domain_index += 1
-            storage_slot_kvs.update(domain_storage_slot)
-        # slot 5 epoch num
-        epoch_base_slot = 5
-        epoch_base_slot_bytes = to_bytes(epoch_base_slot).rjust(32, b'\0')
-        epoch_num = 0
-        epoch_num_bytes = to_bytes(epoch_num).rjust(32, b'\0')
-        storage_slot_kvs["0x" + epoch_base_slot_bytes.hex()] = "0x" + epoch_num_bytes.hex()
-
-        # slot 6 total stake
-        total_stake_base_slot = 6
-        total_stake_base_slot_bytes = to_bytes(total_stake_base_slot).rjust(32, b'\0')
-        total_stake_bytes = int_to_big_endian(total_stake_in_wei).rjust(32, b'\0')
-        storage_slot_kvs["0x" + total_stake_base_slot_bytes.hex()] = "0x" + total_stake_bytes.hex()
-
-        # slot 7 config addr
-        cfg_base_slot = 7
-        cfg_base_slot_bytes = to_bytes(cfg_base_slot).rjust(32, b'\0')
-        cfg_addr = "3100000000000000000000000000000000000000"
-        cfg_addr_bytes = bytes.fromhex(cfg_addr).rjust(32, b'\0')
-        storage_slot_kvs["0x" + cfg_base_slot_bytes.hex()] = "0x" + cfg_addr_bytes.hex()
-
-        # uint256 public lastInflationAdjustmentTime;
-        cfg_base_slot = 11
-        cfg_base_slot_bytes = to_bytes(cfg_base_slot).rjust(32, b'\0')
-        genesis_timestamp_in_s = int(genesis_timestamp / 1000)
-        genesis_timestamp_in_s_bytes = int_to_big_endian(genesis_timestamp_in_s).rjust(32, b'\0')
-        storage_slot_kvs["0x" + cfg_base_slot_bytes.hex()] = "0x" + genesis_timestamp_in_s_bytes.hex()
-
-        # add access_control and disable initializers
-        intrinsic_tx_sender = "1111111111111111111111111111111111111111"
-        self._generate_access_control_admin(storage_slot_kvs, self._deploy.admin_addr) # default admin
-        self._generate_access_control_admin(storage_slot_kvs, intrinsic_tx_sender) # intrinsic sender
-        self._generate_disable_upgradeable_contract_initializers(storage_slot_kvs)
-
-
-        genesis_data = utils.load_json(self._deploy.genesis_tpl)
-        genesis_data['domains'] = genesis_domains
-        sys_staking_addr = '4100000000000000000000000000000000000000'
-        # 非proxy代理部署
-        if 'storage' not in genesis_data['alloc'][sys_staking_addr]:
-            staking_storage_slot_kvs=storage_slot_kvs
-        else: # proxy代理部署
-            staking_storage_slot_kvs=genesis_data['alloc'][sys_staking_addr]['storage']
-            staking_storage_slot_kvs.update(storage_slot_kvs)
-            
-        genesis_data['alloc'][sys_staking_addr]['storage'] = staking_storage_slot_kvs
-        genesis_data['alloc'][sys_staking_addr]['balance'] = hex(total_stake_in_wei)
-
-        # chain epoch duration
-        genesis_data['configs']['chain.epoch_start_timestamp'] = f'{genesis_timestamp}'
-
-        # generate chaincfg storage slot
-        sys_chaincfg_addr = '3100000000000000000000000000000000000000'
-        storage_slot_kvs = self._generate_chaincfg_slots(genesis_data['configs'])
-
-        # add access_control and disable initializers
-        intrinsic_tx_sender = "1111111111111111111111111111111111111111"
-        self._generate_access_control_admin(storage_slot_kvs, self._deploy.admin_addr) # default admin
-        self._generate_access_control_admin(storage_slot_kvs, intrinsic_tx_sender) # intrinsic sender
-        self._generate_disable_upgradeable_contract_initializers(storage_slot_kvs)
-
-        # 非proxy代理部署
-        if 'storage' not in genesis_data['alloc'][sys_chaincfg_addr]:
-            chaincfg_storage_slot_kvs = storage_slot_kvs
-        else: # proxy代理部署
-            chaincfg_storage_slot_kvs=genesis_data['alloc'][sys_chaincfg_addr]['storage']
-            chaincfg_storage_slot_kvs.update(storage_slot_kvs)
-            
-        genesis_data['alloc'][sys_chaincfg_addr]['storage'] = chaincfg_storage_slot_kvs
-
-        # generate rule mng storage slot
-        sys_rule_mng_addr = '2100000000000000000000000000000000000000'
-        storage_slot_kvs = self._generate_rule_mng_slots(genesis_data['configs'])
-        intrinsic_tx_sender = "1111111111111111111111111111111111111111"
-        self._generate_access_control_admin(storage_slot_kvs, self._deploy.admin_addr) # default admin
-        self._generate_access_control_admin(storage_slot_kvs, intrinsic_tx_sender) # intrinsic sender
-        self._generate_disable_upgradeable_contract_initializers(storage_slot_kvs)
-        rulemng_storage_slot_kvs = genesis_data['alloc'][sys_rule_mng_addr]['storage']
-        rulemng_storage_slot_kvs.update(storage_slot_kvs)
-
-        genesis_data['alloc'][sys_rule_mng_addr]['storage'] = rulemng_storage_slot_kvs
-
-
-        with open(self._abspath(self._genesis_file), 'w') as fh:
-            json.dump(genesis_data, fh, indent=2)
-
-        # 使用 admin_addr proxy_admin_addr 替换genesis.{self._deploy.chain_id}.conf中的默认值
-        conf_admin_addr = self._deploy.admin_addr[2:] if self._deploy.admin_addr.startswith("0x") else self._deploy.admin_addr
-
-        default_admin_addr = '2cc298bdee7cfeac9b49f9659e2f3d637e149696'
-        # 替换分隔符为 | 
-        local.run(f'sed -i "s|{default_admin_addr}|{conf_admin_addr}|" {self._abspath(self._genesis_file)}')
-
+        # Output domain files only (genesis generation moved to generate-genesis command)
         for domain_label, domain in all_domain.items():
             domain_data = DomainSchema().dump(domain)
             # 删除一些默认可得的信息，简化输出的domain file
@@ -1113,13 +967,10 @@ class Generator(object):
     def run_genesis_only(self):
         """Generate only genesis.conf file"""
         all_domain: Dict[str, Domain] = {}
-        # Load existing domain data from domain.json files
-        for domain_label in self._deploy.domains.keys():
-            domain_file = self._abspath(f'{domain_label}.json')
-            if not exists(domain_file):
-                raise Exception(f'Domain file {domain_file} not found. Please run generate first.')
-            domain_data = utils.load_json(domain_file)
-            all_domain[domain_label] = DomainSchema().load(domain_data)
+        # Re-generate domain data to get secret information
+        for domain_label, info in self._deploy.domains.items():
+            all_domain[domain_label] = self._generate_domain(
+                domain_label, info)
         
         # Generate genesis.conf
         self._generate_genesis_conf(all_domain)
