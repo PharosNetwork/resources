@@ -900,8 +900,13 @@ class Composer(object):
         local.sync(self._build_file('bin', const.ETCD_CTL_BIN), cli_bin_dir, '-avL')
         local.sync(self._build_file('bin', const.SVC_META_TOOL), cli_bin_dir, '-avL')
         
-        # Genesis file is expected to be at ../genesis.conf (packaged in docker build)
-        # No need to copy genesis file during deploy
+        # Copy genesis.conf from management directory to client/conf/
+        genesis_file = self._build_file('genesis.conf')
+        if os.path.exists(genesis_file):
+            local.sync(genesis_file, join(cli_conf_dir, 'genesis.conf'))
+            logs.info(f'Copied genesis.conf from {genesis_file} to {cli_conf_dir}')
+        else:
+            logs.warn(f'Genesis file {genesis_file} not found in management directory')
 
         # local.sync(self._build_file(
         #     'conf', 'resources/poke/node_config.json'), cli_bin_dir)
@@ -2152,7 +2157,7 @@ class Composer(object):
 
                     # genesis
                     cli_bin_dir = join(self.remote_client_dir, 'bin')
-                    cmd = f'cd {cli_bin_dir}; LD_PRELOAD=./{const.EVMONE_SO} ./pharos_cli genesis -g ../../genesis.conf -s {const.MYGRID_GENESIS_CONFIG_FILENAME}'
+                    cmd = f'cd {cli_bin_dir}; LD_PRELOAD=./{const.EVMONE_SO} ./pharos_cli genesis -g ../conf/genesis.conf -s {const.MYGRID_GENESIS_CONFIG_FILENAME}'
                     logs.info(f'{conn.host}: {cmd}')
                     conn.run(cmd)
             except Exception as e:
@@ -2170,7 +2175,7 @@ class Composer(object):
 
                     # genesis
                     cli_bin_dir = join(self.remote_client_dir, 'bin')
-                    cmd = f'cd {cli_bin_dir}; LD_PRELOAD=./{const.EVMONE_SO} ./pharos_cli genesis -g ../../genesis.conf -s {const.MYGRID_GENESIS_CONFIG_FILENAME}'
+                    cmd = f'cd {cli_bin_dir}; LD_PRELOAD=./{const.EVMONE_SO} ./pharos_cli genesis -g ../conf/genesis.conf -s {const.MYGRID_GENESIS_CONFIG_FILENAME}'
                     logs.info(f'{conn.host}: {cmd}')
                     conn.run(cmd)
             except Exception as e:
