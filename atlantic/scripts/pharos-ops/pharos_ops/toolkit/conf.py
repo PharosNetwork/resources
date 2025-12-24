@@ -669,10 +669,9 @@ class Generator(object):
             avr_partition = int(const.PARTITION_SIZE /
                                 service_count[const.SERVICE_TXPOOL])
         domain_port = dinfo.domain_port
-        cli_tcp_port = dinfo.client_tcp_port
         cli_ws_port = dinfo.client_ws_port
-        cli_wss_port = dinfo.client_wss_port
-        cli_http_port = dinfo.client_http_port
+        cli_http_port = dinfo.client_http_port #提取端口 删除冗余配置只保留http和ws
+
         etcd_initial_cluster = {}
         for desc in dinfo.cluster:
             advertise_host = desc.host
@@ -734,9 +733,8 @@ class Generator(object):
                         del instance.env[f'{instance.service.upper()}_ID']
                     if instance.service in [const.SERVICE_LIGHT, const.SERVICE_PORTAL]:
                         # portal/light: client urls
-                        tcp_port = cli_tcp_port + idx
-                        client_urls = [f'tls://{advertise_host}:{tcp_port}']
-                        client_listen_urls = [f'tls://0.0.0.0:{tcp_port}']
+                        client_urls = []
+                        client_listen_urls = []
                         if cli_http_port:
                             http_port = cli_http_port + idx
                             client_urls.append(
@@ -749,12 +747,6 @@ class Generator(object):
                                 f'ws://{advertise_host}:{ws_port}')
                             client_listen_urls.append(
                                 f'ws://0.0.0.0:{ws_port}')
-                        if cli_wss_port:
-                            wss_port = cli_wss_port + idx
-                            client_urls.append(
-                                f'wss://{advertise_host}:{wss_port}')
-                            client_listen_urls.append(
-                                f'wss://0.0.0.0:{wss_port}')
                         instance.env['CLIENT_ADVERTISE_URLS'] = ','.join(
                             client_urls)
                         instance.env['CLIENT_LISTEN_URLS'] = ','.join(
