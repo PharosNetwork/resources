@@ -41,6 +41,13 @@ def generate(deploy_file):
     entrance.generate(deploy_file)
 
 
+@cli.command(help='Generate genesis config file')
+@click.argument('deploy_file', default='deploy.json', type=click.Path(exists=True))
+def generate_genesis(deploy_file):
+    click.echo(click.format_filename(deploy_file))
+    entrance.generate_genesis(deploy_file)
+
+
 #  @cli.command(context_settings={"ignore_unknown_options": True}, help='Deploy with $domain_label.json')
 @cli.command(help='Deploy with deploy.json or $domain_label.json')
 @click.argument('domain_files', nargs=-1, type=click.Path(exists=True), required=True)

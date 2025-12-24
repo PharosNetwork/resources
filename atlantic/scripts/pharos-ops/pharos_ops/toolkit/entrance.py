@@ -40,6 +40,16 @@ def generate(deploy_file: str):
 
 
 @catch_exception
+def generate_genesis(deploy_file: str):
+    """
+    Command: pharos-ops generate-genesis
+    """
+
+    generator = conf.Generator(deploy_file)
+    generator.run_genesis_only()
+
+
+@catch_exception
 def deploy(domain_files: str, service: str):
     """
     Command: pharos-ops deploy
