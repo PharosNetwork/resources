@@ -927,6 +927,22 @@ class Generator(object):
             all_domain[domain_label] = self._generate_domain(
                 domain_label, info)
 
+        # Generate NODE_ID for each domain and set it in env
+        for domain_label, domain in all_domain.items():
+            key_file = self._abspath(domain.secret.domain.files['key'])
+            try:
+                with open(domain.secret.domain.files.get('key_pub', "r")) as pk_file:
+                    pubkey = pk_file.readline().strip()
+                    pubkey_bytes = bytes.fromhex(f'{pubkey}')
+            except Exception as e:
+                pubkey, pubkey_bytes = Generator._get_pubkey(self._deploy.domain_key_type, key_file, domain.key_passwd)
+            
+            node_id = hashlib.sha256(bytes(pubkey_bytes)).hexdigest()
+            
+            # put node_id into env
+            for instance in domain.cluster.values():
+                instance.env["NODE_ID"] = node_id
+
         # Output domain files only (genesis generation moved to generate-genesis command)
         for domain_label, domain in all_domain.items():
             domain_data = DomainSchema().dump(domain)
