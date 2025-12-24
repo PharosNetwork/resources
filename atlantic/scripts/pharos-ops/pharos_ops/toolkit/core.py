@@ -2053,9 +2053,9 @@ class Composer(object):
             if exists(conn, join(instance.dir, 'conf/pharos.conf')):
                 if self.is_light:
                     if self.chain_protocol == const.PROTOCOL_EVM or self.chain_protocol == const.PROTOCOL_ALL:
-                        cmd = f"cd {work_dir}; LD_PRELOAD=./{const.EVMONE_SO} ./{binary} -d"
+                        cmd = f"cd {work_dir}; LD_PRELOAD=./{const.EVMONE_SO} ./{binary} -c ../conf/{const.PHAROS_CONF_JSON_FILENAME} -d"
                     else:
-                        cmd = f"cd {work_dir}; ./{binary} -d"
+                        cmd = f"cd {work_dir}; ./{binary} -c ../conf/{const.PHAROS_CONF_JSON_FILENAME} -d"
                 else:
                     if self.chain_protocol == const.PROTOCOL_EVM or self.chain_protocol == const.PROTOCOL_ALL:
                         cmd = f"cd {work_dir}; LD_PRELOAD=./{const.EVMONE_SO} ./{binary} -s {instance.service} -d"
