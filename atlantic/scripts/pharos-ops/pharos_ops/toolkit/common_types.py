@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 @dataclass
 class MyGridCommonConfig(object):
     enable_adaptive: bool = field(default=True, metadata={'required': False})
-    filepath: str = field(default='', metadata={'required': True, 'validate': validate.NonEmpty()})
+    # filepath: str = field(default='', metadata={'required': True, 'validate': validate.NonEmpty()})
 
     class Meta:
         ordered: bool = True

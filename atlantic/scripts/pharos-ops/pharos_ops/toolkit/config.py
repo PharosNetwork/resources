@@ -45,7 +45,7 @@ class DomainSecretConfig(object):
 @dataclass
 class SecretConfig(object):
     domain: DomainSecretConfig = field(default_factory=DomainSecretConfig, metadata={'required': True})
-    # client: ClientSecretConfig = field(default_factory=ClientSecretConfig, metadata={'required': True})
+    # client: ClientSecretConfig = field(default_factory=ClientSecretConfig, metadata={'required': False})
 
     class Meta:
         ordered: bool = True

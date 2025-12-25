@@ -22,7 +22,6 @@ import sys
 import requests
 import random
 
-from hexbytes import HexBytes
 from datetime import datetime
 from collections import defaultdict
 from typing import List, Dict, Tuple
@@ -39,6 +38,7 @@ from tempfile import NamedTemporaryFile
 
 from pharos_ops.toolkit import command, svc, const, logs, utils
 from pharos_ops.toolkit.schemas.domain import *
+from pharos_ops.toolkit.schemas.aldaba import *
 from pharos_ops.toolkit.conn_group import is_local, ConcurrentGroup, local
 from pharos_ops.toolkit.utils import safe_get_nested
 from pharos_ops.toolkit.conf import Generator
@@ -142,7 +142,10 @@ def generate_interdomain_placements_map(placements_1: Dict[str, List[str]], plac
                 return None
 
     return placements_map
-
+    
+def increment_port(url, idx):
+    base, port = url.rsplit(':', 1)
+    return f'{base}:{int(port) + int(idx)}'
 
 
 class Composer(object):
@@ -157,7 +160,12 @@ class Composer(object):
         if not self._domain.domain_index:
             self._domain.domain_index = '0'
 
-        self.parse_metrics_config()
+        # self.parse_metrics_config()
+
+        self._pharos_conf_data = utils.load_json(self._domain.running_conf)
+        self._pharos_conf: RootConfig = RootConfigSchema().load(self._pharos_conf_data)
+
+        self.update_pharos_conf_by_domain()
 
         self._extra_storage_start_args: str = ''
         self._is_light: bool = False
@@ -175,8 +183,9 @@ class Composer(object):
         self._mygrid_client_conf = json.loads(const.MYGRID_CLIENT_JSON)
         self._meta_conf = json.loads(const.META_SERVICE_JSON)
         self._cli_conf = json.loads(const.CLI_JSON)
-        self._mygrid_conf_json = utils.load_json(f'../conf/{const.MYGRID_CONF_JSON_FILENAME}')
-        self._monitor_conf_json = utils.load_json(f'../conf/{const.MONITOR_CONF_JSON_FILENAME}')
+
+        # self._mygrid_conf_json = utils.load_json(f'../conf/{const.MYGRID_CONF_JSON_FILENAME}')
+        # self._monitor_conf_json = utils.load_json(f'../conf/{const.MONITOR_CONF_JSON_FILENAME}')
         self._dc_data = {}
 
         # TODO 检查配置, 比如
@@ -189,6 +198,7 @@ class Composer(object):
         # 对于未配置的secret file，根据key_type使用默认的key files (即deploy_type=dev)
         key_file = 'generate.key' if self._domain.use_generated_keys else 'new.key'
         pkey_file = 'generate.pub' if self._domain.use_generated_keys else 'new.pub'
+        pop_file = 'generate.pop' if self._domain.use_generated_keys else 'new.pop'
         
         if self.domain_secret.files.get('key') is None:
             self.domain_secret.files[
@@ -241,17 +251,18 @@ class Composer(object):
                     "CHAIN_ID": self.chain_id,
                     "DOMAIN_LABEL": self.domain_label
                 }
-            instance.env = {**default_env, **
-                            self._domain.common.env, **instance.env}
-            instance.log = {**self._domain.common.log, **instance.log}
-            instance.config = {**self._domain.common.config, **instance.config}
-            instance.gflags = {**self._domain.common.gflags, **instance.gflags}
+            # instance.env = {**default_env, **
+            #                 self._domain.common.env, **instance.env}
+            instance.env = {**default_env, **instance.env}
+            # instance.log = {**self._domain.common.log, **instance.log}
+            # instance.config = {**self._domain.common.config, **instance.config}
+            # instance.gflags = {**self._domain.common.gflags, **instance.gflags}
 
             # get portal client endpoints
             if instance.service in [const.SERVICE_PORTAL, const.SERVICE_LIGHT]:
                 for url in [url.strip() for url in instance.env['CLIENT_ADVERTISE_URLS'].split(',')]:
-                    if url.startswith('tls') or url.startswith('tcp'):
-                        self._client_endpoints.append(url.split('//')[-1])
+                    # if url.startswith('tls') or url.startswith('tcp'):
+                    #     self._client_endpoints.append(url.split('//')[-1])
                     if url.startswith('http'):
                         self._jsonrpc_endpoint = url
             if instance.service in [const.SERVICE_PORTAL, const.SERVICE_LIGHT]:
@@ -308,29 +319,25 @@ class Composer(object):
         self.deploy_top_dir, sub_dir_path = os.path.split(self.deploy_top_dir)
         self.meta_svc_dir = os.path.join(sub_dir_path, self.meta_svc_dir)
 
-        self._mygrid_client_conf[const.MYGRID_CONFIG_NAME]['mygrid_env_path'] = f'../conf/{const.MYGRID_ENV_JSON_FILENAME}'
-        self._mygrid_client_conf[const.MYGRID_CONFIG_NAME]['mygrid_conf_path'] = f'../conf/{const.MYGRID_CONF_JSON_FILENAME}'
+        # self._mygrid_client_conf[const.MYGRID_CONFIG_NAME]['mygrid_env_path'] = f'../conf/{const.MYGRID_ENV_JSON_FILENAME}'
+        # self._mygrid_client_conf[const.MYGRID_CONFIG_NAME]['mygrid_conf_path'] = f'../conf/{const.MYGRID_CONF_JSON_FILENAME}'
         if self._is_light:
             self._mygrid_client_conf[const.MYGRID_CONFIG_NAME]['mygrid_client_deploy_mode'] = f'{const.LIGHT_DEPLOY_MODE}'
         else:
             self._mygrid_client_conf[const.MYGRID_CONFIG_NAME]['mygrid_client_deploy_mode'] = f'{const.ULTRA_DEPLOY_MODE}'
 
         if self._is_light:
-            if self._domain.cluster[const.SERVICE_LIGHT].dir:
-                relative_path = os.path.relpath(self._domain.cluster[const.SERVICE_LIGHT].dir, self.deploy_top_dir)
-                self.meta_svc_dir = f'{relative_path}/data'
-            else:
-                self.meta_svc_dir = f'{self.meta_svc_dir}/light/data'
+            self.meta_svc_dir = f'{self.meta_svc_dir}/light/data'
         else:
             self.meta_svc_dir = f'{self.meta_svc_dir}/data'
 
         # 配置 mygrid.env.json
-        self._mygrid_env_json = utils.load_json(self._domain.mygrid.env.filepath)
+        # self._mygrid_env_json = self._pharos_conf.storage.mygrid_env
 
         if self._domain.mygrid.env.enable_adaptive:
-            self._mygrid_env_json["mygrid_env"]["meta_store_disk"] = self.deploy_top_dir
-            self._mygrid_env_json["mygrid_env"]["flat_kvdb_disk"] = self.deploy_top_dir
-            self._mygrid_env_json["mygrid_env"]["project_data_path"] = self.meta_svc_dir
+            self._pharos_conf.storage.mygrid_env["mygrid_env"]["meta_store_disk"] = self.deploy_top_dir
+            self._pharos_conf.storage.mygrid_env["mygrid_env"]["flat_kvdb_disk"] = self.deploy_top_dir
+            self._pharos_conf.storage.mygrid_env["mygrid_env"]["project_data_path"] = self.meta_svc_dir
 
             # ultra, TODO......
             if self._is_light:
@@ -354,21 +361,20 @@ class Composer(object):
                 '''
 
             placements_json_obj = json.loads(placements_json_str)
-            self._mygrid_env_json["mygrid_env"]["placements"] = placements_json_obj
+            self._pharos_conf.storage.mygrid_env["mygrid_env"]["placements"] = placements_json_obj
 
 
             mygrid_master_port = 23100 + (int(self._domain.domain_index) * 1000)
             mygrid_server_port = 23101 + (int(self._domain.domain_index) * 1000)
-            self._mygrid_env_json["mygrid_env"]["master_lite_admin_port"] = mygrid_master_port
-            self._mygrid_env_json["mygrid_env"]["server_lite_admin_port"] = mygrid_server_port
+            self._pharos_conf.storage.mygrid_env["mygrid_env"]["master_lite_admin_port"] = mygrid_master_port
+            self._pharos_conf.storage.mygrid_env["mygrid_env"]["server_lite_admin_port"] = mygrid_server_port
 
             if not self._is_light:
                 mygrid_service_ip = self.cluster[const.SERVICE_CONTROLLER].ip
-                self._mygrid_env_json["mygrid_env"]["cluster"]["master"]["address"] = f'{mygrid_service_ip}:{mygrid_master_port}'
-                self._mygrid_env_json["mygrid_env"]["cluster"]["servers"][0]["address"] = f'{mygrid_service_ip}:{mygrid_server_port}'
-
+                self._pharos_conf.storage.mygrid_env["mygrid_env"]["cluster"]["master"]["address"] = f'{mygrid_service_ip}:{mygrid_master_port}'
+                self._pharos_conf.storage.mygrid_env["mygrid_env"]["cluster"]["servers"][0]["address"] = f'{mygrid_service_ip}:{mygrid_server_port}'
         # 配置meta_service.conf
-        metasvc_path = f"{self._mygrid_env_json['mygrid_env']['meta_store_disk']}/{self._mygrid_env_json['mygrid_env']['project_data_path']}"
+        metasvc_path = f"{self._pharos_conf.storage.mygrid_env['mygrid_env']['meta_store_disk']}/{self._pharos_conf.storage.mygrid_env['mygrid_env']['project_data_path']}"
         etcd_conf = self._meta_conf[const.META_SERVICE_CONFIG_NAME]['etcd']
         if self._is_light:
             self._meta_conf[const.META_SERVICE_CONFIG_NAME]['data_path'] = f'{metasvc_path}'
@@ -388,8 +394,8 @@ class Composer(object):
             self._cli_conf['data_path'] = f'{metasvc_path}'
         else:
             self._cli_conf['data_path'] = f'{metasvc_path}'
-        self._cli_conf['mygrid_env_path'] = f'../conf/{const.MYGRID_ENV_JSON_FILENAME}'
-        self._cli_conf['mygrid_conf_path'] = f'../conf/{const.MYGRID_CONF_JSON_FILENAME}'
+        # self._cli_conf['mygrid_env_path'] = f'../conf/{const.MYGRID_ENV_JSON_FILENAME}'
+        # self._cli_conf['mygrid_conf_path'] = f'../conf/{const.MYGRID_CONF_JSON_FILENAME}'
 
         # 生成相应的docker-compose.yml
         for host, inst_list in self._all_instances.items():
@@ -427,6 +433,30 @@ class Composer(object):
         self._domain.common.metrics.push_port = metrics_config["pamir_cetina_push_port"]
         self._domain.common.metrics.job_name = metrics_config["pamir_cetina_job_name"]
         self._domain.common.metrics.push_interval = metrics_config["pamir_cetina_push_interval"]
+    
+    def deep_merge(self,base_dict, update_dict):
+        for key, value in update_dict.items():
+            if key in base_dict and isinstance(base_dict[key], dict) and isinstance(value, dict):
+                # 递归合并
+                self.deep_merge(base_dict[key], value)
+            else:
+                # 直接覆盖
+                base_dict[key] = value
+
+    def update_pharos_conf_by_domain(self):
+        for key, value in self._domain.common.env.items():
+            full_key = f"/SetEnv/{key}"
+            self._pharos_conf.aldaba.startup_config.parameters[full_key] = value
+
+        self.deep_merge(self._pharos_conf.aldaba.startup_config.log,self._domain.common.log)
+        self.deep_merge(self._pharos_conf.aldaba.startup_config.config,self._domain.common.config)
+
+        for key, value in self._domain.common.gflags.items():
+            full_key = f"/GlobalFlag/{key}"
+            self._pharos_conf.aldaba.startup_config.parameters[full_key] = value
+        
+        self.deep_merge(self._pharos_conf.aldaba.monitor_config,self._domain.common.monitor_config)
+
 
     @property
     def is_light(self) -> bool:
@@ -560,8 +590,8 @@ class Composer(object):
         logs.info(f'clean {instance_name} on {conn.host}, is clean meta : {clean_meta}')
         instance = self.cluster[instance_name]
 
-        mygrid_placements = extract_mygrid_placements(self._mygrid_env_json)
-        metasvc_path = f"{self._mygrid_env_json['mygrid_env']['meta_store_disk']}/{self._mygrid_env_json['mygrid_env']['project_data_path']}"
+        mygrid_placements = extract_mygrid_placements(self._pharos_conf.storage.mygrid_env)
+        metasvc_path = f"{self._pharos_conf.storage.mygrid_env['mygrid_env']['meta_store_disk']}/{self._pharos_conf.storage.mygrid_env['mygrid_env']['project_data_path']}"
         logs.info(f'clean {mygrid_placements} {metasvc_path} on {conn.host}')
         for placement in mygrid_placements:
             if clean_meta:
@@ -584,7 +614,26 @@ class Composer(object):
     def clean_sqlite(self, instance: Instance, dsn: str, conn: Connection):
         clean_file(conn, join(f'{instance.dir}/bin', dsn))
 
+    def clean_postgresql(self, instance: Instance, dsn: str, conn: Connection):
+        dsn_dict = dict(item.split("=") for item in dsn.split() if "=" in item)
 
+        host = dsn_dict.get("host")
+        user = dsn_dict.get("user")
+        password = dsn_dict.get("password")
+        dbname = dsn_dict.get("dbname")
+        port = dsn_dict.get("port")
+        sslmode = dsn_dict.get("sslmode")
+        timezone = dsn_dict.get("TimeZone")
+
+        conn.run(f"""
+                 export PGHOST={host} &&
+                 export PGUSER={user} &&
+                 export PGPASSWORD={password} &&
+                 export PGDATABASE={dbname} &&
+                 export PGPORT={port} &&
+                 psql -c 'DROP DATABASE {dbname};' &&
+                 psql -c 'CREATE DATABASE {dbname};'
+                 """)
 
 
     def clean_host(self, conn: Connection, service):
@@ -666,29 +715,26 @@ class Composer(object):
                 # link binary
                 source = join(self.deploy_dir, 'bin', self._instance_bin(instance))
                 target = join(instance.dir, 'bin')
-                cmd = command.ln_sf_check(source, target)
-                if cmd != '':
-                    logs.info(cmd)
-                    conn.run(cmd)
+                cmd = f'ln -sf {source} {target}'
+                logs.info(cmd)
+                conn.run(cmd)
 
                 # link EVMONE SO
                 if self.chain_protocol == const.PROTOCOL_EVM or self.chain_protocol == const.PROTOCOL_ALL:
                     source = join(self.deploy_dir, 'bin', const.EVMONE_SO)
                     target = join(instance.dir, 'bin')
-                    cmd = command.ln_sf_check(source, target)
-                    if cmd != '':
-                        logs.info(cmd)
-                        conn.run(cmd)
+                    cmd = f'ln -sf {source} {target}'
+                    logs.info(cmd)
+                    conn.run(cmd)
 
                 # link VERSION
                 source = join(self.deploy_dir, 'bin', const.PHAROS_VERSION)
                 target = join(instance.dir, 'bin')
-                cmd = command.ln_sf_check(source, target)
-                if cmd != '':
-                    logs.info(cmd)
-                    conn.run(cmd)
+                cmd = f'ln -sf {source} {target}'
+                logs.info(cmd)
+                conn.run(cmd)
 
-    def deploy_host_conf(self, conn: Connection, service=None):
+    def deploy_host_conf(self, conn: Connection, service=None): #修改
         instances = self._instances(service).get(conn.host, [])
            # deploy conf request binaries has been already deployed
         for instance in instances:
@@ -700,43 +746,62 @@ class Composer(object):
                 self._cli_conf['mygrid_client_deploy_mode'] = f'{const.ULTRA_DEPLOY_MODE}'
 
             self._mygrid_client_conf[const.MYGRID_CONFIG_NAME]['mygrid_client_id'] = f'light'
+           
+            pharos_conf_file = join(instance.dir, 'conf/pharos.conf')
 
-            # generate launch.conf
             if self.cluster[instance.name].service not in [const.SERVICE_ETCD, const.SERVICE_STORAGE]:
-                launch_conf_file = join(instance.dir, 'conf/launch.conf')
-                launch_conf_data = {
-                    'log': {},
-                    'parameters': {f'/SetEnv/{k}': v for k, v in instance.env.items()},
-                    'init_config': self._cli_conf
-                }
-                self._dump_json(launch_conf_file, launch_conf_data, conn=conn)
+                self._pharos_conf.aldaba.startup_config.init_config = self._cli_conf
+                for k, v in instance.env.items():
+                    self._pharos_conf.aldaba.startup_config.parameters[f'/SetEnv/{k}'] = v
+                self._pharos_conf.aldaba.startup_config.parameters["/SetEnv/CHAIN_ID"]=self._domain.chain_id
+                self._pharos_conf.aldaba.startup_config.parameters["/SetEnv/DOMAIN_LABEL"] =self._domain.domain_label
+                self._pharos_conf.aldaba.startup_config.parameters["/SetEnv/SERVICE"] = instance.service
+            self._pharos_conf.aldaba.startup_config.config["service"]["inner_debug_url"]=increment_port(self._pharos_conf.aldaba.startup_config.config["service"]["inner_debug_url"],self._domain.domain_index)             
+            # # generate launch.conf
+            # if self.cluster[instance.name].service not in [const.SERVICE_ETCD, const.SERVICE_STORAGE]:
+            #     launch_conf_file = join(instance.dir, 'conf/launch.conf')
+            #     launch_conf_data = {
+            #         'log': {},
+            #         'parameters': {f'/SetEnv/{k}': v for k, v in instance.env.items()},
+            #         'init_config': self._cli_conf
+            #     }
+            #     self._dump_json(launch_conf_file, launch_conf_data, conn=conn)
 
             # generate cubenet.conf and key files(todo)
             if self.cluster[instance.name].service in [const.SERVICE_DOG, const.SERVICE_LIGHT]:
-                dog_json_file = utils.load_json(self._build_conf('dog.conf'))
-                if dog_json_file['config']['cubenet']['enabled'] == True:
-                    cubenet_conf_path = abspath(dog_json_file['config']['cubenet']['config_file']['filepath'])
-                    with open(cubenet_conf_path, 'r') as cubenet_conf:
-                        cubenet_conf_data = json.load(cubenet_conf)
-                    cubenet_conf_data['cubenet']['p2p']['nid'] = self.cluster[instance.name].env["NODE_ID"]
-                    port_str = self.cluster[instance.name].env["DOMAIN_LISTEN_URLS0"].split(':')[-1]
-                    port_offset = int(dog_json_file['config']['cubenet']['port_offset'])
-                    cubenet_conf_data['cubenet']['p2p']['host'][0]['port'] =  str(int(port_str)+ port_offset)
-                    cubenet_conf_file = join(instance.dir, 'conf/cubenet.conf')
-                    self._dump_json(cubenet_conf_file, cubenet_conf_data, conn=conn)
-
+                # dog_json_file = utils.load_json(self._build_conf('dog.conf'))
+                # if dog_json_file['config']['cubenet']['enabled'] == True:
+                #     cubenet_conf_path = abspath(dog_json_file['config']['cubenet']['config_file']['filepath'])
+                #     with open(cubenet_conf_path, 'r') as cubenet_conf:
+                #         cubenet_conf_data = json.load(cubenet_conf)
+                #     cubenet_conf_data['cubenet']['p2p']['nid'] = self.cluster[instance.name].env["NODE_ID"]
+                #     port_str = self.cluster[instance.name].env["DOMAIN_LISTEN_URLS0"].split(':')[-1]
+                #     port_offset = int(dog_json_file['config']['cubenet']['port_offset'])
+                #     cubenet_conf_data['cubenet']['p2p']['host'][0]['port'] =  str(int(port_str)+ port_offset)
+                #     cubenet_conf_file = join(instance.dir, 'conf/cubenet.conf')
+                #     self._dump_json(cubenet_conf_file, cubenet_conf_data, conn=conn)
+                self._pharos_conf.cubenet.cubenet.p2p["nid"] = self.cluster[instance.name].env["NODE_ID"]
+                port_str = self.cluster[instance.name].env["DOMAIN_LISTEN_URLS0"].split(':')[-1]
+                port_offset = int(self._pharos_conf.aldaba.startup_config.config["cubenet"]["port_offset"])
+                self._pharos_conf.cubenet.cubenet.p2p['host'][0]['port'] =  str(int(port_str)+ port_offset)
                     # Only handle cubenet service, write light subsequently uniformly
-                    if self.cluster[instance.name].service == const.SERVICE_DOG:
-                        key_file = 'generate.key' if self._domain.use_generated_keys else 'new.key'
-                        target_key_file = key_file if self._domain.use_generated_keys else 'generate.key'
+                if self.cluster[instance.name].service == const.SERVICE_DOG:
+                    key_file = 'generate.key' if self._domain.use_generated_keys else 'new.key'
+                    target_key_file = key_file if self._domain.use_generated_keys else 'generate.key'
 
-                        cubenet_certs_dir = join(instance.dir, 'certs/')
-                        conn.sync(self._build_file(f'scripts/resources/domain_keys/prime256v1/{self._domain.domain_label}/{key_file}'), join(cubenet_certs_dir, target_key_file))
+                    cubenet_certs_dir = join(instance.dir, 'certs/')
+                    conn.sync(self._build_file(f'scripts/resources/domain_keys/prime256v1/{self._domain.domain_label}/{key_file}'), join(cubenet_certs_dir, target_key_file))
+            
+            self._pharos_conf.aldaba.secret_config.domain_key= f'{to_base64(self.domain_secret.files["key"])}'
+            self._pharos_conf.aldaba.secret_config.stabilizing_key= f'{to_base64(self.domain_secret.files["stabilizing_key"])}'
+            
+            self._dump_json(pharos_conf_file, RootConfigSchema().dump(self._pharos_conf), conn=conn)
 
             # Two sets of key pairs are copied to the deployment path.
             if self.cluster[instance.name].service == const.SERVICE_LIGHT:             
                 key_file = 'generate.key' if self._domain.use_generated_keys else 'new.key'
                 pkey_file = 'generate.pub' if self._domain.use_generated_keys else 'new.pub'
+                pop_file = 'generate.pop' if self._domain.use_generated_keys else 'new.pop'
 
                 deploy_certs_dir = join(instance.dir, 'certs/')
 
@@ -744,8 +809,10 @@ class Composer(object):
                 key_files = [
                     (f'scripts/resources/domain_keys/prime256v1/{self._domain.domain_label}/{key_file}', 'generate.key'),
                     (f'scripts/resources/domain_keys/prime256v1/{self._domain.domain_label}/{pkey_file}', 'generate.pub'),
+                    (f'scripts/resources/domain_keys/prime256v1/{self._domain.domain_label}/{pop_file}', 'generate.pop'),
                     (f'scripts/resources/domain_keys/bls12381/{self._domain.domain_label}/{key_file}', 'generate_bls.key'),
-                    (f'scripts/resources/domain_keys/bls12381/{self._domain.domain_label}/{pkey_file}', 'generate_bls.pub')
+                    (f'scripts/resources/domain_keys/bls12381/{self._domain.domain_label}/{pkey_file}', 'generate_bls.pub'),
+                    (f'scripts/resources/domain_keys/bls12381/{self._domain.domain_label}/{pop_file}', 'generate_bls.pop'),
                 ]
                 
                 for src_path, target_name in key_files:
@@ -757,17 +824,17 @@ class Composer(object):
                         logs.info(f'Key file {target_name} not found, skipping') 
                                                    
             # generate mygrid config json and mygrid env json
-            mygrid_config_json_file = join(instance.dir, f'conf/{const.MYGRID_CONF_JSON_FILENAME}')
-            self._dump_json(mygrid_config_json_file, self._mygrid_conf_json, conn=conn)
+            # mygrid_config_json_file = join(instance.dir, f'conf/{const.MYGRID_CONF_JSON_FILENAME}')
+            # self._dump_json(mygrid_config_json_file, self._mygrid_conf_json, conn=conn)
 
-            mygrid_env_json_file = join(instance.dir, f'conf/{const.MYGRID_ENV_JSON_FILENAME}')
-            self._dump_json(mygrid_env_json_file, self._mygrid_env_json, conn=conn)
+            # mygrid_env_json_file = join(instance.dir, f'conf/{const.MYGRID_ENV_JSON_FILENAME}')
+            # self._dump_json(mygrid_env_json_file, self._mygrid_env_json, conn=conn)
 
-            # monitor conf
-            monitor_json_file = join(instance.dir, f'conf/{const.MONITOR_CONF_JSON_FILENAME}')
-            self._dump_json(monitor_json_file, self._monitor_conf_json, conn=conn)
+            # # monitor conf
+            # monitor_json_file = join(instance.dir, f'conf/{const.MONITOR_CONF_JSON_FILENAME}')
+            # self._dump_json(monitor_json_file, self._monitor_conf_json, conn=conn)
 
-    def deploy_host(self, conn: Connection, service=None, deploy_binary=True, deploy_conf=True):
+    def deploy_host(self, conn: Connection, service=None, deploy_binary=True, deploy_conf=True): #修改
         instances = self._instances(service).get(conn.host, [])
         logs.info(f'deploy {[inst.name for inst in instances]} at {conn.host}')
 
@@ -781,10 +848,10 @@ class Composer(object):
         # deploy instances conf
         if deploy_conf:
             self.deploy_host_conf(conn, service)
-                
+
         # 非自适应时，创建meta存放目录
         if not self._domain.mygrid.env.enable_adaptive:
-            self._make_workspace(self._mygrid_env_json["mygrid_env"]["meta_store_disk"], self._mygrid_env_json["mygrid_env"]["project_data_path"], conn=conn)
+            self._make_workspace(self._pharos_conf.storage.mygrid_env['mygrid_env']["meta_store_disk"], self._pharos_conf.storage.mygrid_env['mygrid_env']["project_data_path"], conn=conn)
 
 
     def deploy_local_cli(self):
@@ -832,7 +899,16 @@ class Composer(object):
         local.sync(self._build_file('bin', const.PHAROS_VERSION), cli_bin_dir)
         local.sync(self._build_file('bin', const.ETCD_CTL_BIN), cli_bin_dir, '-avL')
         local.sync(self._build_file('bin', const.SVC_META_TOOL), cli_bin_dir, '-avL')
-        local.sync(self._domain.genesis_conf, cli_conf_dir)
+        
+        # Copy genesis.conf from management directory to client/conf/
+        genesis_file = self._build_file('genesis.conf')
+        if os.path.exists(genesis_file):
+            local.sync(genesis_file, join(cli_conf_dir, 'genesis.conf'))
+            # Also copy to genesis.{chain_id}.conf for compatibility
+            local.sync(genesis_file, join(cli_conf_dir, f'genesis.{self._domain.chain_id}.conf'))
+            logs.info(f'Copied genesis.conf from {genesis_file} to {cli_conf_dir}')
+        else:
+            logs.warn(f'Genesis file {genesis_file} not found in management directory')
 
         # local.sync(self._build_file(
         #     'conf', 'resources/poke/node_config.json'), cli_bin_dir)
@@ -843,10 +919,6 @@ class Composer(object):
         #     'conf', f'resources/poke/{key_type}/client'), cli_bin_dir)
         local.sync(self._build_file('conf', 'artifacts'),
                    self.local_client_dir)
-
-        # copy genesis_conf and rename to genesis.conf
-        local.sync(self._domain.genesis_conf,
-                   join(cli_conf_dir, 'genesis.conf'))
 
         # if perf_succ:
         #     local.run(f'cd {cli_bin_dir};ln -sf ../../../bin/perf')
@@ -866,59 +938,33 @@ class Composer(object):
         # dump meta_service.conf 用于meta_tool，存储相关子命令
         utils.dump_json(join(cli_bin_dir, const.META_SERVICE_CONFIG_FILENAME), self._meta_conf)
         # dump mygrid.conf.json
-        utils.dump_json(join(cli_conf_dir, const.MYGRID_CONF_JSON_FILENAME), self._mygrid_conf_json)
+        # utils.dump_json(join(cli_conf_dir, const.MYGRID_CONF_JSON_FILENAME), self._mygrid_conf_json)
         # dump mygrid.env.json
-        utils.dump_json(join(cli_conf_dir, const.MYGRID_ENV_JSON_FILENAME), self._mygrid_env_json)
+        # utils.dump_json(join(cli_conf_dir, const.MYGRID_ENV_JSON_FILENAME), self._mygrid_env_json)
 
         # dump cli.conf 用于pharos_cli
-        utils.dump_json(join(cli_bin_dir, 'cli.conf'), self._cli_conf)
+        # utils.dump_json(join(cli_bin_dir, 'cli.conf'), self._cli_conf)
+        self._dump_json(join(cli_conf_dir, 'pharos.conf'), RootConfigSchema().dump(self._pharos_conf))
 
 
-    def initialize_conf(self, conn: Context):
-        # set storage meta data in etcd
-        cli_bin_dir = join(self.remote_client_dir, 'bin')
+    # def initialize_conf(self, conn: Context): #改动
+    #     # set storage meta data in etcd
+    #     cli_bin_dir = join(self.remote_client_dir, 'bin')
 
-        # set pharos conf in etcd
-        logs.info('set pharos conf in etcd')
+    #     # 只设置密钥相关内容到 etcd
+    #     logs.info('set pharos keys in etcd')
 
-        json_files = {
-            f'/{self.chain_id}/global/config': self._build_conf('global.conf'),
-            f'/{self.chain_id}/services/portal/config': self._build_conf('portal.conf'),
-            f'/{self.chain_id}/services/dog/config': self._build_conf('dog.conf'),
-            f'/{self.chain_id}/services/txpool/config': self._build_conf('txpool.conf'),
-            f'/{self.chain_id}/services/controller/config': self._build_conf('controller.conf'),
-            f'/{self.chain_id}/services/compute/config': self._build_conf('compute.conf')
-        }
-        for key, file in json_files.items():
-            logs.info(f'set {key}')
-            # TODO 使用pharos_cli
-            #  conn.run(f'cd {cli_bin_dir}; ./pharos_cli meta -c cli.conf -t cp {file} etcd:/{key}')
-            conn.run(
-                f"cd {cli_bin_dir}; ./meta_tool -conf {const.META_SERVICE_CONFIG_FILENAME} -set -key={key} -value='{load_file(file)}'")
-        confs = {
-            # f'/{self.chain_id}/portal/certs': {
-            #     'ca.crt': f'{to_base64(self.client_secret.files["ca_cert"])}',
-            #     'server.crt': f'{to_base64(self.client_secret.files["cert"])}',
-            #     'server.key': f'{to_base64(self.client_secret.files["key"])}',
-            # },
-            f'/{self.chain_id}/secrets/domain.key': {
-                'domain_key': f'{to_base64(self.domain_secret.files["key"])}',
-                'stabilizing_key': f'{to_base64(self.domain_secret.files["stabilizing_key"])}',
-            }
-        }
-        for name, instance in self.cluster.items():
-            if instance.log or instance.config:
-                confs[f'/{self.chain_id}/services/{instance.service}/instance_config/{name}'] = {
-                    'log': instance.log,
-                    'parameters': {f'/GlobalFlag/{k}': v for k, v in instance.gflags.items()},
-                    'config': instance.config,
-                }
-        for key, value in confs.items():
-            logs.info(f'set {key}')
-            # TODO 使用pharos_cli
-            conn.run(
-                f"cd {cli_bin_dir}; ./meta_tool -conf {const.META_SERVICE_CONFIG_FILENAME} -set -key={key} -value='{json.dumps(value)}'")
-        # TODO 保存domain files到etcd
+    #     confs = {
+    #         f'/{self.chain_id}/secrets/domain.key': {
+    #             'domain_key': f'{to_base64(self.domain_secret.files["key"])}',
+    #             'stabilizing_key': f'{to_base64(self.domain_secret.files["stabilizing_key"])}',
+    #         }
+    #     }
+    #     for key, value in confs.items():
+    #         logs.info(f'set {key}')
+    #         conn.run(
+    #             f"cd {cli_bin_dir}; ./meta_tool -conf {const.META_SERVICE_CONFIG_FILENAME} -set -key={key} -value='{json.dumps(value)}'"
+    #         )
 
     def deploy(self, service=None):
         logs.info(f'deploy {self.domain_label}, service: {service}')
@@ -946,20 +992,6 @@ class Composer(object):
                     # 本地client目录同步至远程，copy softlink binary
                     conn.sync(self.local_client_dir,
                               self.deploy_dir, rsync_opts='-avzL')
-
-            ## initialize conf in config center(etcd or rocksdb)
-            # try:
-            #     if not self.is_light:
-            #         logs.info('start etcd')
-            #         self.start_service(const.SERVICE_ETCD)
-            #     with Connection(deploy_client_host, user=self.run_user) as conn:
-            #         self.initialize_conf(conn)
-            # except Exception as e:
-            #     logs.error('{}'.format(e))
-            # finally:
-            #     if not self.is_light:
-            #         logs.info('stop etcd')
-            #         self.stop_service(const.SERVICE_ETCD)
 
     def sync_cli_bin(self, local_client_dir: str, deploy_client_host, remote_client_dir):
         with Connection(deploy_client_host, user=self.run_user) as conn:
@@ -1012,7 +1044,7 @@ class Composer(object):
                     # 本地client目录同步至远程，copy softlink binary
                     self.sync_cli_bin(self.local_client_dir, deploy_client_host, self.deploy_dir)
 
-    def update_conf(self, service=None):
+    def update_conf(self, service=None): #改动
 
         logs.info(f'update conf {self.domain_label}, service: {service}')
         # concurrent deploy multible conf
@@ -1037,30 +1069,12 @@ class Composer(object):
                     # 本地client目录同步至远程，copy softlink binary
                     self.sync_cli_conf(self.local_client_dir, deploy_client_host, self.deploy_dir)
 
-        # write conf to storage
-        if self.is_light:
-            with Connection(self.cluster[const.SERVICE_LIGHT].ip, user=self.run_user) as conn:
-                # write meta
-                self.initialize_conf(conn)
-        else:
-            self.start_service(const.SERVICE_ETCD)
-            self.start_service(const.SERVICE_STORAGE)
-            try:
-                with Connection(self.cluster[const.SERVICE_CONTROLLER].ip, user=self.run_user) as conn:
-                    # write meta
-                    self.initialize_conf(conn)
-            except Exception as e:
-                logs.error('{}'.format(e))
-            finally:
-                self.stop_service(const.SERVICE_STORAGE)
-                self.stop_service(const.SERVICE_ETCD)
-
     def clone_from(self, is_cold) ->  Dict[str, List[str]]:
         if not self.is_light:
             logs.error('Domain clone only support light mode for now')
             return
         (src_placements_map, project_data_path) = (
-            extract_mygrid_placements_with_key(self._mygrid_env_json)
+            extract_mygrid_placements_with_key(json.dumps(self._pharos_conf.storage.mygrid_env))
         )
         if is_cold:
             # stop domain
@@ -1120,7 +1134,7 @@ class Composer(object):
 
         # collect target domain placement
         (dst_placements, dst_project_data_path) = (
-            extract_mygrid_placements_with_key(self._mygrid_env_json)
+        extract_mygrid_placements_with_key(json.dumps(self._pharos_conf.storage.mygrid_env))
         )
         (src_placements, src_project_data_path) = src_placement
 
@@ -1657,11 +1671,6 @@ class Composer(object):
         "internalType": "string",
         "name": "_endpoint",
         "type": "string"
-      },
-      {
-        "internalType": "address",
-        "name": "_new_owner",
-        "type": "address"
       }
     ],
     "name": "updateValidator",
@@ -1745,59 +1754,26 @@ class Composer(object):
     '''
     STAKING_ADDRESS = '0x4100000000000000000000000000000000000000'
 
-    def update_validator(self, endpoint: str, key: str, poolId: str, new_owner: str):
-        if len(poolId)!=64:
-            logs.fatal(f"poolId must be 64 , but got {len(poolId)}")
-        poolIdBytes = bytes(HexBytes(poolId))
-        parameters = [
-            poolIdBytes,
-            self.domain_label,
-            self.domain_endpoint,
-            Web3().to_checksum_address(new_owner),
-        ]
-        web3 = Web3(Web3.HTTPProvider(endpoint))
-        if web3.is_connected():
-            logs.info("web3 is connected")
-        else:
-            logs.error("web3 is not connected")
-        account = Account.from_key(key)
-        staking_contract = web3.eth.contract(
-            address=Composer.STAKING_ADDRESS, abi=Composer.STAKING_ABI
-        )
-        tx = staking_contract.functions.updateValidator(*parameters).buildTransaction(
-            {
-                "value": 0,
-                "from": account.address,
-                "nonce": web3.eth.getTransactionCount(account.address),
-                "gasPrice": 1,
-            }
-        )
-        print("end tx")
-        signed_tx = web3.eth.account.sign_transaction(tx, key)
-        tx_hash = web3.eth.sendRawTransaction(signed_tx.rawTransaction)
-        receipt = web3.eth.waitForTransactionReceipt(tx_hash)
-        if receipt["status"] == 1:
-            logs.info("validator update success")
-        else:
-            logs.error("validator update failed")
-
-        logs.info(f"validator update tx: {tx_hash.hex()}")
-        logs.info(f"validator update receipt: {receipt}")  
-
-
-    def add_validator(self, endpoint: str, key: str):
+    def add_validator(self, endpoint: str, key: str, no_prefix: bool = False):
         try:
             with open(self.domain_secret.files.get('key_pub', "r")) as pk_file:
                 domain_pubkey = pk_file.readline().strip()
+                if no_prefix and domain_pubkey.startswith('1003'):
+                    domain_pubkey = domain_pubkey[4:]
         except Exception as e:
-            domain_pubkey, _ = Generator._get_pubkey(self.domain_secret.key_type, self.domain_secret.files.get('key'))
-
+            if no_prefix:
+                domain_pubkey, _ = Generator._get_pubkey_raw(self.domain_secret.key_type, self.domain_secret.files.get('key'))
+            else:
+                domain_pubkey, _ = Generator._get_pubkey(self.domain_secret.key_type, self.domain_secret.files.get('key'))
+        
         stabilizing_pk_file = self.domain_secret.files.get('stabilizing_pk')
 
         domain_pubkey = '0x' + domain_pubkey
 
         with open(stabilizing_pk_file, 'r') as spk_file:
             spk = spk_file.read().strip()
+            if no_prefix and spk.startswith('4003'):
+                spk = spk[4:]
 
         parameters = [self.domain_label, domain_pubkey,"0x00", spk, "0x00", self.domain_endpoint]
 
@@ -1811,7 +1787,7 @@ class Composer(object):
 
         staking_contract = web3.eth.contract(address=Composer.STAKING_ADDRESS, abi=Composer.STAKING_ABI)
         tx = staking_contract.functions.registerValidator(*parameters).buildTransaction({
-            'value': 1000000000000000000,
+            'value': 1000000000000000000000000,
             'from': account.address,
             'nonce': web3.eth.getTransactionCount(account.address),
             'gasPrice': 1000000000
@@ -1831,13 +1807,18 @@ class Composer(object):
 
 
 
-    def exit_validator(self,endpoint: str, key: str):
+    def exit_validator(self,endpoint: str, key: str, no_prefix: bool = False):
         try:
             with open(self.domain_secret.files.get('key_pub', "r")) as pk_file:
                 domain_pubkey = pk_file.readline().strip()
+                if no_prefix and domain_pubkey.startswith('1003'):
+                    domain_pubkey = domain_pubkey[4:]
                 domain_pubkey_bytes = bytes.fromhex(f'{domain_pubkey}')
         except Exception as e:
-            _, domain_pubkey_bytes = Generator._get_pubkey(self.domain_secret.key_type, self.domain_secret.files.get('key'))
+            if no_prefix:
+                _, domain_pubkey_bytes = Generator._get_pubkey_raw(self.domain_secret.key_type, self.domain_secret.files.get('key'))
+            else:
+                _, domain_pubkey_bytes = Generator._get_pubkey(self.domain_secret.key_type, self.domain_secret.files.get('key'))
 
         web3 = Web3(Web3.HTTPProvider(endpoint))
 
@@ -2041,8 +2022,14 @@ class Composer(object):
 
         if self._domain.enable_setkey_env:
             # 准备环境变量前缀
-            env_prefix = f"export CONSENSUS_KEY_PWD='{self._domain.key_passwd}'; export PORTAL_SSL_PWD='{self._domain.portal_ssl_pass}';"
-            logs.info(f'Setting environment variables at {conn.host}')            
+            # set env ASAN_OPTIONS
+            work_dir = join(instance.dir, 'bin')
+            asan_options_dict = dict(const.TPL_ASAN_OPS)
+            asan_options_dict['log_path'] = join(instance.dir, 'bin', 'asanerr.log')
+            asan_options = ':'.join([k + '=' + v for k, v in asan_options_dict.items()])
+            env_prefix = f"export CONSENSUS_KEY_PWD='{self._domain.key_passwd}'; export PORTAL_SSL_PWD='{self._domain.portal_ssl_pass}'; export ASAN_OPTIONS='{asan_options}';"
+            logs.info(f'Setting environment variables at {conn.host}')
+            logs.info(f'Setting environment asan option0 {asan_options}')
         else:
             # enable_setkey_env关闭时，需手动设置环境变量
             # 检查多个环境变量
@@ -2053,6 +2040,14 @@ class Composer(object):
                 if not check_env_result.ok:
                     raise Exception(f"{env_var} environment variable not set at {conn.host}. Please set it manually.")
                 logs.info(f'Environment variable {env_var} verified at {conn.host}')
+
+            # set env ASAN_OPTIONS
+            asan_options_dict = dict(const.TPL_ASAN_OPS)
+            asan_options_dict['log_path'] = join(instance.dir, 'bin', 'asanerr.log')
+            asan_options = ':'.join([k + '=' + v for k, v in asan_options_dict.items()])
+            env_prefix = f"export ASAN_OPTIONS='{asan_options}';"
+            logs.info(f'Setting environment variables at {conn.host}')
+            logs.info(f'Setting environment asan option1 {asan_options}')
     
         if self.enable_docker:
             conn.run(
@@ -2060,17 +2055,17 @@ class Composer(object):
         else:
             work_dir = join(instance.dir, 'bin')
             binary = self._instance_bin(instance)
-            if exists(conn, join(instance.dir, 'conf/launch.conf')):
+            if exists(conn, join(instance.dir, 'conf/pharos.conf')):
                 if self.is_light:
                     if self.chain_protocol == const.PROTOCOL_EVM or self.chain_protocol == const.PROTOCOL_ALL:
-                        cmd = f"cd {work_dir}; LD_PRELOAD=./{const.EVMONE_SO} ./{binary} -c ../conf/launch.conf -d"
+                        cmd = f"cd {work_dir}; LD_PRELOAD=./{const.EVMONE_SO} ./{binary} -c ../conf/{const.PHAROS_CONF_JSON_FILENAME} -d"
                     else:
-                        cmd = f"cd {work_dir}; ./{binary} -c ../conf/launch.conf -d"
+                        cmd = f"cd {work_dir}; ./{binary} -c ../conf/{const.PHAROS_CONF_JSON_FILENAME} -d"
                 else:
                     if self.chain_protocol == const.PROTOCOL_EVM or self.chain_protocol == const.PROTOCOL_ALL:
-                        cmd = f"cd {work_dir}; LD_PRELOAD=./{const.EVMONE_SO} ./{binary} -c ../conf/launch.conf -s {instance.service} -d"
+                        cmd = f"cd {work_dir}; LD_PRELOAD=./{const.EVMONE_SO} ./{binary} -s {instance.service} -d"
                     else:
-                        cmd = f"cd {work_dir}; ./{binary} -c ../conf/launch.conf -s {instance.service} -d"
+                        cmd = f"cd {work_dir}; ./{binary} -s {instance.service} -d"
                 conn.run(f"{env_prefix}{cmd}")
 
             elif instance.service == const.SERVICE_ETCD:
@@ -2159,8 +2154,8 @@ class Composer(object):
             logs.info('start generate genesis state')
             try:
                 with Connection(self.cluster[const.SERVICE_LIGHT].ip, user=self.run_user) as conn:
-                    # write meta
-                    self.initialize_conf(conn)
+                    # # write meta
+                    # self.initialize_conf(conn)
 
                     # genesis
                     cli_bin_dir = join(self.remote_client_dir, 'bin')
@@ -2177,12 +2172,12 @@ class Composer(object):
             logs.info('start generate genesis state')
             try:
                 with Connection(self.cluster[const.SERVICE_CONTROLLER].ip, user=self.run_user) as conn:
-                    # write meta
-                    self.initialize_conf(conn)
+                    # # write meta
+                    # self.initialize_conf(conn)
 
                     # genesis
                     cli_bin_dir = join(self.remote_client_dir, 'bin')
-                    cmd = f'cd {cli_bin_dir}; LD_PRELOAD=./{const.EVMONE_SO} ./pharos_cli genesis -g ../conf/genesis.conf --spec 0 -s {const.MYGRID_GENESIS_CONFIG_FILENAME}'
+                    cmd = f'cd {cli_bin_dir}; LD_PRELOAD=./{const.EVMONE_SO} ./pharos_cli genesis -g ../conf/genesis.conf -s {const.MYGRID_GENESIS_CONFIG_FILENAME}'
                     logs.info(f'{conn.host}: {cmd}')
                     conn.run(cmd)
             except Exception as e:

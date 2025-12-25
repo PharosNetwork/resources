@@ -20,7 +20,7 @@ if [ ! -d /data/pharos-node ]; then
     /root/.local/bin/pipenv run pharos --no-debug deploy /app/scripts/domain.json
     /root/.local/bin/pipenv run pharos --no-debug bootstrap /app/scripts/domain.json
     cd /data/pharos-node/domain/light/bin/
-    exec env LD_PRELOAD=./libevmone.so ./pharos_light -c ../conf/launch.conf
+    exec env LD_PRELOAD=./libevmone.so ./pharos_light -c ../conf/pharos.conf
 else
     rm -f /data/pharos-node/domain/light/bin/libevmone.so
     rm -f /data/pharos-node/domain/light/bin/pharos_light
@@ -36,7 +36,6 @@ else
     cd /app/scripts
     /bin/cp -f /data/domain.json .
     /bin/cp -rf /data/resources /app/scripts
-    /bin/cp -f /data/pharos-node/domain/light/conf/monitor.conf /app/conf/monitor.conf
     /bin/cp -f /data/pharos-node/domain/client/conf/genesis.conf /app/conf/
 
     /bin/cp -f /app/bin/pharos_cli /data/pharos-node/domain/client/bin/
@@ -44,5 +43,5 @@ else
 
     ~/.local/bin/pipenv run pharos update-conf domain.json
     cd /data/pharos-node/domain/light/bin/
-    exec env LD_PRELOAD=./libevmone.so ./pharos_light -c ../conf/launch.conf
+    exec env LD_PRELOAD=./libevmone.so ./pharos_light -c ../conf/pharos.conf
 fi
