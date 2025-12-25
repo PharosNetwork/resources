@@ -36,7 +36,6 @@ else
     cd /app/scripts
     /bin/cp -f /data/domain.json .
     /bin/cp -rf /data/resources /app/scripts
-    /bin/cp -f /data/pharos-node/domain/light/conf/monitor.conf /app/conf/monitor.conf
     /bin/cp -f /data/pharos-node/domain/client/conf/genesis.conf /app/conf/
 
     /bin/cp -f /app/bin/pharos_cli /data/pharos-node/domain/client/bin/
