@@ -50,30 +50,7 @@ def generate_genesis(deploy_file):
     entrance.generate_genesis(deploy_file)
 
 
-#  @cli.command(context_settings={"ignore_unknown_options": True}, help='Deploy with $domain_label.json')
-@cli.command(help='Deploy with deploy.json or $domain_label.json')
-@click.argument('domain_files', nargs=-1, type=click.Path(exists=True), required=True)
-@click.option('--service', '-s', help='service [etcd|mygrid_service|portal|dog|txpool|controller|compute]]')
-def deploy(domain_files, service):
-    for domain_file in domain_files:
-        click.echo(click.format_filename(domain_file))
-    entrance.deploy(domain_files, service)
-    
-@cli.command(help='Update binary')
-@click.argument('domain_files', nargs=-1, type=click.Path(exists=True), required=True)
-@click.option('--service', '-s', help='service [etcd|mygrid_service|portal|dog|txpool|controller|compute]]')
-def update(domain_files, service):
-    for domain_file in domain_files:
-        click.echo(click.format_filename(domain_file))
-    entrance.update(domain_files, service)
-    
-@cli.command(help='Update conf')
-@click.argument('domain_files', nargs=-1, type=click.Path(exists=True), required=True)
-@click.option('--service', '-s', help='service [etcd|mygrid_service|portal|dog|txpool|controller|compute]]')
-def update_conf(domain_files, service):
-    for domain_file in domain_files:
-        click.echo(click.format_filename(domain_file))
-    entrance.update_conf(domain_files, service)
+# Deploy command removed - deployment flow simplified to: generate -> bootstrap -> start
     
 @cli.command(help='find fork between two domains')
 @click.argument('domain1', nargs=1, type=click.Path(exists=True), required=True)
@@ -108,7 +85,6 @@ def clone(src_domain, dest_domains, cold, backup):
 def add_domain(src_domain, dest_domains, cold, backup):
     for domain_file in dest_domains:
         click.echo(click.format_filename(domain_file))
-    entrance.deploy(dest_domains, None)
     entrance.bootstrap(dest_domains)
     entrance.clone(src_domain, dest_domains, cold, backup)
     entrance.start(dest_domains, None, '')

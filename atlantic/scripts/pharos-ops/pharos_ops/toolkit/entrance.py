@@ -52,64 +52,9 @@ def generate_genesis(deploy_file: str):
     generator = conf.Generator(deploy_file)
     generator.generate_genesis()
 
-@catch_exception
-def deploy(domain_files: str, service: str):
-    """
-    Command: pharos-ops deploy
-    """
-    # TODO 多domain_files部署的时候，确保所有domain_files的chain_id/genesis.conf一致, domain_label不冲突
-    if len(domain_files) == 1:
-        composer = core.Composer(domain_files[0])
-        composer.deploy(service)
-    else:
-        procs = []
-        for domain_file in domain_files:
-            composer = core.Composer(domain_file)
-            p = Process(target=composer.deploy, args=(service,))
-            procs.append(p)
-            p.start()
-        for p in procs:
-            p.join()
-            
-
-@catch_exception
-def update(domain_files: str, service: str):
-    """
-    Command: pharos-ops deploy
-    """
-    # TODO 多domain_files部署的时候，确保所有domain_files的chain_id/genesis.conf一致, domain_label不冲突
-    if len(domain_files) == 1:
-        composer = core.Composer(domain_files[0])
-        composer.update(service)
-    else:
-        procs = []
-        for domain_file in domain_files:
-            composer = core.Composer(domain_file)
-            p = Process(target=composer.update, args=(service,))
-            procs.append(p)
-            p.start()
-        for p in procs:
-            p.join()
-            
-            
-@catch_exception
-def update_conf(domain_files: str, service: str):
-    """
-    Command: pharos-ops deploy
-    """
-    # TODO 多domain_files部署的时候，确保所有domain_files的chain_id/genesis.conf一致, domain_label不冲突
-    if len(domain_files) == 1:
-        composer = core.Composer(domain_files[0])
-        composer.update_conf(service)
-    else:
-        procs = []
-        for domain_file in domain_files:
-            composer = core.Composer(domain_file)
-            p = Process(target=composer.update_conf, args=(service,))
-            procs.append(p)
-            p.start()
-        for p in procs:
-            p.join()
+# Deploy, update, and update_conf functions removed
+# New simplified flow: generate -> bootstrap -> start
+# Management directory is now the deployment directory
             
             
 @catch_exception
