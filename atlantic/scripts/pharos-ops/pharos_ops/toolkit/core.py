@@ -2163,8 +2163,14 @@ class Composer(object):
                     logs.error(f'Genesis file not found: {genesis_file}')
                     return
                 
+                # Check if mygrid_genesis.conf exists
+                mygrid_genesis_file = join(bin_dir, const.MYGRID_GENESIS_CONFIG_FILENAME)
+                if not os.path.exists(mygrid_genesis_file):
+                    logs.error(f'Config file not found: {mygrid_genesis_file}. Please run "pharos generate" first.')
+                    return
+                
                 # Execute pharos_cli genesis locally
-                cmd = f'cd {bin_dir}; LD_PRELOAD=./libevmone.so ./pharos_cli genesis -g ../genesis.conf -s ../conf/pharos.conf'
+                cmd = f'cd {bin_dir}; LD_PRELOAD=./libevmone.so ./pharos_cli genesis -g ../genesis.conf -s {const.MYGRID_GENESIS_CONFIG_FILENAME}'
                 logs.info(f'Executing locally: {cmd}')
                 result = local.run(cmd)
                 if not result.ok:

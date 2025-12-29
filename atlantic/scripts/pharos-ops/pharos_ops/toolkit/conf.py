@@ -944,6 +944,32 @@ class Generator(object):
             logs.info(f'dump {domain_label} file at: {domain_file}')
             # json.dump(domain_data, fh, indent=2)
             utils.dump_json(domain_file, domain_data, list_inline=True)
+        
+        # Generate pharos.conf and mygrid_genesis.conf for simplified deployment
+        # These files are needed by bootstrap command
+        logs.info('Generating pharos.conf and mygrid_genesis.conf...')
+        for domain_label, domain in all_domain.items():
+            domain_file = self._abspath(f'{domain_label}.json')
+            try:
+                # Import Composer here to avoid circular dependency
+                from pharos_ops.toolkit import core
+                composer = core.Composer(domain_file)
+                
+                # Generate pharos.conf to conf/ directory
+                conf_dir = self._build_file('conf')
+                pharos_conf_file = join(conf_dir, 'pharos.conf')
+                from pharos_ops.toolkit.schemas.aldaba import RootConfigSchema
+                composer._dump_json(pharos_conf_file, RootConfigSchema().dump(composer._pharos_conf))
+                logs.info(f'Generated pharos.conf at: {pharos_conf_file}')
+                
+                # Generate mygrid_genesis.conf to bin/ directory
+                bin_dir = self._build_file('bin')
+                mygrid_genesis_file = join(bin_dir, const.MYGRID_GENESIS_CONFIG_FILENAME)
+                utils.dump_json(mygrid_genesis_file, composer._mygrid_client_conf)
+                logs.info(f'Generated {const.MYGRID_GENESIS_CONFIG_FILENAME} at: {mygrid_genesis_file}')
+            except Exception as e:
+                logs.error(f'Failed to generate config files: {e}')
+                raise
                   
         # 配置以最新的 SPEC VERSION 进行部署
         if self._deploy.use_latest_version:
