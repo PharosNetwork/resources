@@ -2153,38 +2153,28 @@ class Composer(object):
             self.clean(const.SERVICE_LIGHT)
             logs.info('start generate genesis state')
             try:
-                with Connection(self.cluster[const.SERVICE_LIGHT].ip, user=self.run_user) as conn:
-                    # # write meta
-                    # self.initialize_conf(conn)
-
-                    # genesis
-                    cli_bin_dir = join(self.remote_client_dir, 'bin')
-                    cmd = f'cd {cli_bin_dir}; LD_PRELOAD=./{const.EVMONE_SO} ./pharos_cli genesis -g ../conf/genesis.conf -s {const.MYGRID_GENESIS_CONFIG_FILENAME}'
-                    logs.info(f'{conn.host}: {cmd}')
-                    conn.run(cmd)
+                # Local execution - management directory is deployment directory
+                # Directory structure: bin/, conf/, data/, genesis.conf, log/
+                bin_dir = self._build_file('bin')
+                genesis_file = self._build_file('genesis.conf')
+                
+                # Check if genesis.conf exists
+                if not os.path.exists(genesis_file):
+                    logs.error(f'Genesis file not found: {genesis_file}')
+                    return
+                
+                # Execute pharos_cli genesis locally
+                cmd = f'cd {bin_dir}; LD_PRELOAD=./libevmone.so ./pharos_cli genesis -g ../genesis.conf -s ../conf/pharos.conf'
+                logs.info(f'Executing locally: {cmd}')
+                result = local.run(cmd)
+                if not result.ok:
+                    logs.error(f'Bootstrap failed: {result.stderr}')
             except Exception as e:
                 logs.error('{}'.format(e))
         else:
-            # clean all data
-            self.clean(None)
-            self.start_service(const.SERVICE_ETCD)
-            self.start_service(const.SERVICE_STORAGE)
-            logs.info('start generate genesis state')
-            try:
-                with Connection(self.cluster[const.SERVICE_CONTROLLER].ip, user=self.run_user) as conn:
-                    # # write meta
-                    # self.initialize_conf(conn)
-
-                    # genesis
-                    cli_bin_dir = join(self.remote_client_dir, 'bin')
-                    cmd = f'cd {cli_bin_dir}; LD_PRELOAD=./{const.EVMONE_SO} ./pharos_cli genesis -g ../conf/genesis.conf -s {const.MYGRID_GENESIS_CONFIG_FILENAME}'
-                    logs.info(f'{conn.host}: {cmd}')
-                    conn.run(cmd)
-            except Exception as e:
-                logs.error('{}'.format(e))
-            finally:
-                self.stop_service(const.SERVICE_STORAGE)
-                self.stop_service(const.SERVICE_ETCD)
+            # Ultra mode not supported in simplified deployment
+            logs.error('Ultra mode is not supported in simplified deployment. Only light mode is available.')
+            return
 
     def cli_dbquery(self, query_arg: str):
         try:
