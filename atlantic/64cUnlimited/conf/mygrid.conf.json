@@ -39,13 +39,12 @@
         "storage_kernel_rocks_max_write_buffer_number": 8,
         "storage_kernel_rocksdb_global_rate_limiter_rate_bytes_per_sec": 67108864,
         "storage_kernel_rocksdb_global_rate_limiter_mode": 2,
-        "mygrid_client_open_flat_kv_cache": true,
         "mygrid_flat_cache_partition_capacity": 268435456,
         "mygrid_client_grid_thread_num": 32,
         "mygrid_master_to_server_auto_prune_period_us": 1800000000,
         "letus_merkle_enable_trie_logical_page_release": true,
         "letus_batch_update_logical_page_size": 50000,
-        "letus_prune_compaction_max_concurrent_count": 8,
+        "letus_prune_compaction_max_concurrent_count": 6,
         "letus_max_file_count_for_prune_compaction": 6,
         "letus_slow_index_file_read": 100000,
         "letus_io_throttle_rw_bps": 209715200,
@@ -57,9 +56,7 @@
         "letus_merkle_trie_l1_delta_page_ckp": 128,
         "letus_merkle_trie_ln_base_page_ckp": 8,
         "letus_merkle_trie_ln_delta_page_ckp": 4,
-
-        "mygrid_client_open_history_kv_cache": true,
-        "mygrid_client_history_kv_full_cache": true
+        "mygrid_client_enable_full_state_kv_db": true
       }
     }
   }
