@@ -2170,7 +2170,7 @@ class Composer(object):
                     return
                 
                 # Execute pharos_cli genesis locally
-                cmd = f'cd {bin_dir}; LD_PRELOAD=./libevmone.so ./pharos_cli genesis -g ../genesis.conf'
+                cmd = f'cd {bin_dir}; LD_PRELOAD=./libevmone.so ./pharos_cli genesis -g ../genesis.conf -c ../conf/pharos.conf'
                 logs.info(f'Executing locally: {cmd}')
                 result = local.run(cmd)
                 if not result.ok:
