@@ -20,6 +20,7 @@ import base64
 import click
 import ipaddress
 import json
+from collections import OrderedDict
 from .toolkit.schemas import DeploySchema
 
 
@@ -334,7 +335,8 @@ def post_bvttest(job: str, branch: str, repo: str, user: str, workspace: str, pi
 @cli.command(help="Set public ip")
 @click.argument("ip", envvar="PUBLIC_IP", default="127.0.0.1")
 @click.argument("deploy_file", default="deploy.light.json")
-def set_ip(ip: str, deploy_file: str):
+@click.argument("cubenet_file", default="../conf/cubenet.conf")
+def set_ip(ip: str, deploy_file: str, cubenet_file: str):
     if ip == "127.0.0.1":
         logs.fatal("Please set public ip")
         return
@@ -351,6 +353,16 @@ def set_ip(ip: str, deploy_file: str):
                 d.host = ip
         with open(deploy_file, "w") as fh:
             json.dump(DeploySchema().dump(deploy), fh, indent=2)
+
+    with open(cubenet_file, 'r', encoding='utf-8') as cf:
+        data = json.load(cf, object_pairs_hook=OrderedDict)
+        port = data["cubenet"]["p2p"]["host"][0]["port"]
+        data["cubenet"]["p2p"]["host"][0]["public_address"] = {
+            "ip": ip,
+            "port": port,
+        }
+    with open(cubenet_file, 'w', encoding='utf-8') as cf:
+        json.dump(data, cf, indent=2)
     logs.info(f"Set public ip to {ip}")
 
 @cli.command(help="Update validator domain")
