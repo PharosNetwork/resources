@@ -119,8 +119,15 @@ def clean(domain_files, service, all):
 
 
 @cli.command(help='Generate genesis state, old data and logs will be cleanup')
-def bootstrap():
-    entrance.bootstrap_simple()
+@click.argument('domain_files', nargs=-1, type=click.Path(exists=True), required=False)
+def bootstrap(domain_files):
+    if domain_files and len(domain_files) > 0:
+        # Old way: with domain.json files
+        logs.warn('Using domain.json is deprecated. Bootstrap will work without it in the future.')
+        entrance.bootstrap(domain_files)
+    else:
+        # New way: without domain.json
+        entrance.bootstrap_simple()
 
 
 @cli.command(help='Status with $domain_label.json')
