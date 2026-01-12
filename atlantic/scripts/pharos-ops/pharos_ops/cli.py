@@ -118,12 +118,9 @@ def clean(domain_files, service, all):
     entrance.clean(domain_files, service, all)
 
 
-@cli.command(help='Generate genesis state with $domain_label.json, old data and logs will be cleanup')
-@click.argument('domain_files', nargs=-1, type=click.Path(exists=True), required=True)
-def bootstrap(domain_files):
-    for domain_file in domain_files:
-        click.echo(click.format_filename(domain_file))
-    entrance.bootstrap(domain_files)
+@cli.command(help='Generate genesis state, old data and logs will be cleanup')
+def bootstrap():
+    entrance.bootstrap_simple()
 
 
 @cli.command(help='Status with $domain_label.json')
@@ -324,38 +321,24 @@ def set_ip(ip: str, pharos_conf_file: str):
     with open(pharos_conf_file, "r") as fh:
         pharos_conf_data = json.load(fh)
     
-    # Update IP in pharos.conf
-    # Update CLIENT_ADVERTISE_URLS
+    # Update IP in pharos.conf based on new format
+    # New format: {"aldaba": {"startup_config": {"init_config": {"host_ip": "127.0.0.1", ...}}}}
     if "aldaba" in pharos_conf_data and "startup_config" in pharos_conf_data["aldaba"]:
         startup_config = pharos_conf_data["aldaba"]["startup_config"]
-        if "parameters" in startup_config:
-            params = startup_config["parameters"]
+        if "init_config" in startup_config:
+            init_config = startup_config["init_config"]
             
-            # Update CLIENT_ADVERTISE_URLS
-            if "/SetEnv/CLIENT_ADVERTISE_URLS" in params:
-                old_url = params["/SetEnv/CLIENT_ADVERTISE_URLS"]
-                # Replace IP in URL, keep protocol and port
-                import re
-                new_url = re.sub(r'://[^:]+:', f'://{ip}:', old_url)
-                params["/SetEnv/CLIENT_ADVERTISE_URLS"] = new_url
-                logs.info(f"Updated CLIENT_ADVERTISE_URLS: {old_url} -> {new_url}")
-            
-            # Update DOMAIN_LISTEN_URLS0
-            if "/SetEnv/DOMAIN_LISTEN_URLS0" in params:
-                old_url = params["/SetEnv/DOMAIN_LISTEN_URLS0"]
-                new_url = re.sub(r'://[^:]+:', f'://{ip}:', old_url)
-                params["/SetEnv/DOMAIN_LISTEN_URLS0"] = new_url
-                logs.info(f"Updated DOMAIN_LISTEN_URLS0: {old_url} -> {new_url}")
-    
-    # Update cubenet host IP
-    if "cubenet" in pharos_conf_data and "cubenet" in pharos_conf_data["cubenet"]:
-        cubenet_config = pharos_conf_data["cubenet"]["cubenet"]
-        if "p2p" in cubenet_config and "host" in cubenet_config["p2p"]:
-            hosts = cubenet_config["p2p"]["host"]
-            if len(hosts) > 0:
-                old_host = hosts[0].get("host", "")
-                hosts[0]["host"] = ip
-                logs.info(f"Updated cubenet host: {old_host} -> {ip}")
+            # Update host_ip
+            if "host_ip" in init_config:
+                old_ip = init_config["host_ip"]
+                init_config["host_ip"] = ip
+                logs.info(f"Updated host_ip: {old_ip} -> {ip}")
+            else:
+                logs.warn("host_ip not found in init_config")
+        else:
+            logs.warn("init_config not found in startup_config")
+    else:
+        logs.warn("aldaba.startup_config not found in pharos.conf")
     
     # Write back to pharos.conf
     with open(pharos_conf_file, "w") as fh:

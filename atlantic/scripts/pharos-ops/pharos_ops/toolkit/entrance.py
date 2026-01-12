@@ -141,6 +141,51 @@ def bootstrap(domain_files: str):
 
 
 @catch_exception
+def bootstrap_simple():
+    """
+    Command: pharos-ops bootstrap (simplified version without domain.json)
+    Executes bootstrap directly without needing domain.json file
+    """
+    logs.info('Starting simplified bootstrap')
+    
+    # Execute bootstrap directly without Composer
+    from os.path import join, abspath, exists
+    from pharos_ops.toolkit.conn_group import local
+    from pharos_ops.toolkit import const
+    
+    # Assume we're in the management directory (scripts/)
+    # Directory structure: bin/, conf/, data/, genesis.conf, log/
+    bin_dir = abspath('../bin')
+    genesis_file = abspath('../genesis.conf')
+    pharos_conf_file = abspath('../conf/pharos.conf')
+    
+    # Check if genesis.conf exists
+    if not exists(genesis_file):
+        logs.error(f'Genesis file not found: {genesis_file}')
+        return
+    
+    # Check if pharos.conf exists
+    if not exists(pharos_conf_file):
+        logs.error(f'Config file not found: {pharos_conf_file}')
+        return
+    
+    # Check if mygrid_genesis.conf exists
+    mygrid_genesis_file = join(bin_dir, const.MYGRID_GENESIS_CONFIG_FILENAME)
+    if not exists(mygrid_genesis_file):
+        logs.error(f'Config file not found: {mygrid_genesis_file}. Please run "pharos generate" first.')
+        return
+    
+    # Execute pharos_cli genesis locally
+    cmd = f'cd {bin_dir}; LD_PRELOAD=./libevmone.so ./pharos_cli genesis -g ../genesis.conf -c ../conf/pharos.conf'
+    logs.info(f'Executing locally: {cmd}')
+    result = local.run(cmd)
+    if not result.ok:
+        logs.error(f'Bootstrap failed: {result.stderr}')
+    else:
+        logs.info('Bootstrap completed successfully')
+
+
+@catch_exception
 def status(domain_files: str, service: str):
     """
     Command: pharos-ops status
