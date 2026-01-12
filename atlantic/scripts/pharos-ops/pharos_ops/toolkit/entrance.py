@@ -169,11 +169,8 @@ def bootstrap_simple():
         logs.error(f'Config file not found: {pharos_conf_file}')
         return
     
-    # Check if mygrid_genesis.conf exists
-    mygrid_genesis_file = join(bin_dir, const.MYGRID_GENESIS_CONFIG_FILENAME)
-    if not exists(mygrid_genesis_file):
-        logs.error(f'Config file not found: {mygrid_genesis_file}. Please run "pharos generate" first.')
-        return
+    # NOTE: mygrid_genesis.conf is no longer required
+    # The configuration is now embedded in pharos.conf
     
     # Execute pharos_cli genesis locally
     cmd = f'cd {bin_dir}; LD_PRELOAD=./libevmone.so ./pharos_cli genesis -g ../genesis.conf -c ../conf/pharos.conf'
