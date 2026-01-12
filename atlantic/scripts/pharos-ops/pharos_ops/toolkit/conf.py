@@ -945,9 +945,11 @@ class Generator(object):
             # json.dump(domain_data, fh, indent=2)
             utils.dump_json(domain_file, domain_data, list_inline=True)
         
+        # NOTE: pharos.conf generation is now disabled - using static file instead
         # Generate pharos.conf and mygrid_genesis.conf for simplified deployment
         # These files are needed by bootstrap command
-        logs.info('Generating pharos.conf and mygrid_genesis.conf...')
+        logs.info('Generating mygrid_genesis.conf...')
+        # logs.info('Generating pharos.conf and mygrid_genesis.conf...')
         for domain_label, domain in all_domain.items():
             domain_file = self._abspath(f'{domain_label}.json')
             try:
@@ -955,12 +957,13 @@ class Generator(object):
                 from pharos_ops.toolkit import core
                 composer = core.Composer(domain_file)
                 
+                # NOTE: pharos.conf is now a static file, generation disabled
                 # Generate pharos.conf to conf/ directory
-                conf_dir = self._build_file('conf')
-                pharos_conf_file = join(conf_dir, 'pharos.conf')
-                from pharos_ops.toolkit.schemas.aldaba import RootConfigSchema
-                composer._dump_json(pharos_conf_file, RootConfigSchema().dump(composer._pharos_conf))
-                logs.info(f'Generated pharos.conf at: {pharos_conf_file}')
+                # conf_dir = self._build_file('conf')
+                # pharos_conf_file = join(conf_dir, 'pharos.conf')
+                # from pharos_ops.toolkit.schemas.aldaba import RootConfigSchema
+                # composer._dump_json(pharos_conf_file, RootConfigSchema().dump(composer._pharos_conf))
+                # logs.info(f'Generated pharos.conf at: {pharos_conf_file}')
                 
                 # Generate mygrid_genesis.conf to bin/ directory
                 bin_dir = self._build_file('bin')

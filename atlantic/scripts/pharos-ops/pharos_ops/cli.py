@@ -309,8 +309,8 @@ def post_bvttest(job: str, branch: str, repo: str, user: str, workspace: str, pi
 
 @cli.command(help="Set public ip")
 @click.argument("ip", envvar="PUBLIC_IP", default="127.0.0.1")
-@click.argument("deploy_file", default="deploy.light.json")
-def set_ip(ip: str, deploy_file: str):
+@click.argument("pharos_conf_file", default="../conf/pharos.conf")
+def set_ip(ip: str, pharos_conf_file: str):
     if ip == "127.0.0.1":
         logs.fatal("Please set public ip")
         return
@@ -319,15 +319,49 @@ def set_ip(ip: str, deploy_file: str):
     except ValueError as e:
         logs.fatal(f"Invalid ip: {e}")
         return
-    with open(deploy_file, "r") as fh:
-        deploy_data = json.load(fh)
-        deploy = DeploySchema().load(deploy_data)
-        for _, v in deploy.domains.items():
-            for d in v.cluster:
-                d.host = ip
-        with open(deploy_file, "w") as fh:
-            json.dump(DeploySchema().dump(deploy), fh, indent=2)
-    logs.info(f"Set public ip to {ip}")
+    
+    # Load pharos.conf
+    with open(pharos_conf_file, "r") as fh:
+        pharos_conf_data = json.load(fh)
+    
+    # Update IP in pharos.conf
+    # Update CLIENT_ADVERTISE_URLS
+    if "aldaba" in pharos_conf_data and "startup_config" in pharos_conf_data["aldaba"]:
+        startup_config = pharos_conf_data["aldaba"]["startup_config"]
+        if "parameters" in startup_config:
+            params = startup_config["parameters"]
+            
+            # Update CLIENT_ADVERTISE_URLS
+            if "/SetEnv/CLIENT_ADVERTISE_URLS" in params:
+                old_url = params["/SetEnv/CLIENT_ADVERTISE_URLS"]
+                # Replace IP in URL, keep protocol and port
+                import re
+                new_url = re.sub(r'://[^:]+:', f'://{ip}:', old_url)
+                params["/SetEnv/CLIENT_ADVERTISE_URLS"] = new_url
+                logs.info(f"Updated CLIENT_ADVERTISE_URLS: {old_url} -> {new_url}")
+            
+            # Update DOMAIN_LISTEN_URLS0
+            if "/SetEnv/DOMAIN_LISTEN_URLS0" in params:
+                old_url = params["/SetEnv/DOMAIN_LISTEN_URLS0"]
+                new_url = re.sub(r'://[^:]+:', f'://{ip}:', old_url)
+                params["/SetEnv/DOMAIN_LISTEN_URLS0"] = new_url
+                logs.info(f"Updated DOMAIN_LISTEN_URLS0: {old_url} -> {new_url}")
+    
+    # Update cubenet host IP
+    if "cubenet" in pharos_conf_data and "cubenet" in pharos_conf_data["cubenet"]:
+        cubenet_config = pharos_conf_data["cubenet"]["cubenet"]
+        if "p2p" in cubenet_config and "host" in cubenet_config["p2p"]:
+            hosts = cubenet_config["p2p"]["host"]
+            if len(hosts) > 0:
+                old_host = hosts[0].get("host", "")
+                hosts[0]["host"] = ip
+                logs.info(f"Updated cubenet host: {old_host} -> {ip}")
+    
+    # Write back to pharos.conf
+    with open(pharos_conf_file, "w") as fh:
+        json.dump(pharos_conf_data, fh, indent=2)
+    
+    logs.info(f"Set public ip to {ip} in {pharos_conf_file}")
 
 @cli.command(help="Update validator domain")
 @click.option("--endpoint", type=str, required=True)

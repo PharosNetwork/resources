@@ -749,41 +749,24 @@ class Composer(object):
            
             pharos_conf_file = join(instance.dir, 'conf/pharos.conf')
 
-            if self.cluster[instance.name].service not in [const.SERVICE_ETCD, const.SERVICE_STORAGE]:
-                self._pharos_conf.aldaba.startup_config.init_config = self._cli_conf
-                for k, v in instance.env.items():
-                    self._pharos_conf.aldaba.startup_config.parameters[f'/SetEnv/{k}'] = v
-                self._pharos_conf.aldaba.startup_config.parameters["/SetEnv/CHAIN_ID"]=self._domain.chain_id
-                self._pharos_conf.aldaba.startup_config.parameters["/SetEnv/DOMAIN_LABEL"] =self._domain.domain_label
-                self._pharos_conf.aldaba.startup_config.parameters["/SetEnv/SERVICE"] = instance.service
-            self._pharos_conf.aldaba.startup_config.config["service"]["inner_debug_url"]=increment_port(self._pharos_conf.aldaba.startup_config.config["service"]["inner_debug_url"],self._domain.domain_index)             
-            # # generate launch.conf
+            # NOTE: pharos.conf generation is now disabled - using static file instead
+            # The following code is kept for reference but commented out
             # if self.cluster[instance.name].service not in [const.SERVICE_ETCD, const.SERVICE_STORAGE]:
-            #     launch_conf_file = join(instance.dir, 'conf/launch.conf')
-            #     launch_conf_data = {
-            #         'log': {},
-            #         'parameters': {f'/SetEnv/{k}': v for k, v in instance.env.items()},
-            #         'init_config': self._cli_conf
-            #     }
-            #     self._dump_json(launch_conf_file, launch_conf_data, conn=conn)
+            #     self._pharos_conf.aldaba.startup_config.init_config = self._cli_conf
+            #     for k, v in instance.env.items():
+            #         self._pharos_conf.aldaba.startup_config.parameters[f'/SetEnv/{k}'] = v
+            #     self._pharos_conf.aldaba.startup_config.parameters["/SetEnv/CHAIN_ID"]=self._domain.chain_id
+            #     self._pharos_conf.aldaba.startup_config.parameters["/SetEnv/DOMAIN_LABEL"] =self._domain.domain_label
+            #     self._pharos_conf.aldaba.startup_config.parameters["/SetEnv/SERVICE"] = instance.service
+            # self._pharos_conf.aldaba.startup_config.config["service"]["inner_debug_url"]=increment_port(self._pharos_conf.aldaba.startup_config.config["service"]["inner_debug_url"],self._domain.domain_index)             
 
             # generate cubenet.conf and key files(todo)
             if self.cluster[instance.name].service in [const.SERVICE_DOG, const.SERVICE_LIGHT]:
-                # dog_json_file = utils.load_json(self._build_conf('dog.conf'))
-                # if dog_json_file['config']['cubenet']['enabled'] == True:
-                #     cubenet_conf_path = abspath(dog_json_file['config']['cubenet']['config_file']['filepath'])
-                #     with open(cubenet_conf_path, 'r') as cubenet_conf:
-                #         cubenet_conf_data = json.load(cubenet_conf)
-                #     cubenet_conf_data['cubenet']['p2p']['nid'] = self.cluster[instance.name].env["NODE_ID"]
-                #     port_str = self.cluster[instance.name].env["DOMAIN_LISTEN_URLS0"].split(':')[-1]
-                #     port_offset = int(dog_json_file['config']['cubenet']['port_offset'])
-                #     cubenet_conf_data['cubenet']['p2p']['host'][0]['port'] =  str(int(port_str)+ port_offset)
-                #     cubenet_conf_file = join(instance.dir, 'conf/cubenet.conf')
-                #     self._dump_json(cubenet_conf_file, cubenet_conf_data, conn=conn)
-                self._pharos_conf.cubenet.cubenet.p2p["nid"] = self.cluster[instance.name].env["NODE_ID"]
-                port_str = self.cluster[instance.name].env["DOMAIN_LISTEN_URLS0"].split(':')[-1]
-                port_offset = int(self._pharos_conf.aldaba.startup_config.config["cubenet"]["port_offset"])
-                self._pharos_conf.cubenet.cubenet.p2p['host'][0]['port'] =  str(int(port_str)+ port_offset)
+                # NOTE: cubenet config is now part of static pharos.conf
+                # self._pharos_conf.cubenet.cubenet.p2p["nid"] = self.cluster[instance.name].env["NODE_ID"]
+                # port_str = self.cluster[instance.name].env["DOMAIN_LISTEN_URLS0"].split(':')[-1]
+                # port_offset = int(self._pharos_conf.aldaba.startup_config.config["cubenet"]["port_offset"])
+                # self._pharos_conf.cubenet.cubenet.p2p['host'][0]['port'] =  str(int(port_str)+ port_offset)
                     # Only handle cubenet service, write light subsequently uniformly
                 if self.cluster[instance.name].service == const.SERVICE_DOG:
                     key_file = 'generate.key' if self._domain.use_generated_keys else 'new.key'
@@ -792,10 +775,18 @@ class Composer(object):
                     cubenet_certs_dir = join(instance.dir, 'certs/')
                     conn.sync(self._build_file(f'scripts/resources/domain_keys/prime256v1/{self._domain.domain_label}/{key_file}'), join(cubenet_certs_dir, target_key_file))
             
-            self._pharos_conf.aldaba.secret_config.domain_key= f'{to_base64(self.domain_secret.files["key"])}'
-            self._pharos_conf.aldaba.secret_config.stabilizing_key= f'{to_base64(self.domain_secret.files["stabilizing_key"])}'
-            
-            self._dump_json(pharos_conf_file, RootConfigSchema().dump(self._pharos_conf), conn=conn)
+            # NOTE: pharos.conf is now a static file, no longer generated dynamically
+            # self._pharos_conf.aldaba.secret_config.domain_key= f'{to_base64(self.domain_secret.files["key"])}'
+            # self._pharos_conf.aldaba.secret_config.stabilizing_key= f'{to_base64(self.domain_secret.files["stabilizing_key"])}'
+            # self._dump_json(pharos_conf_file, RootConfigSchema().dump(self._pharos_conf), conn=conn)
+
+            # Copy static pharos.conf from management directory to deployment directory
+            static_pharos_conf = self._build_file('conf/pharos.conf')
+            if os.path.exists(static_pharos_conf):
+                conn.sync(static_pharos_conf, pharos_conf_file)
+                logs.info(f'Copied static pharos.conf to {conn.host}:{pharos_conf_file}')
+            else:
+                logs.warn(f'Static pharos.conf not found at {static_pharos_conf}')
 
             # Two sets of key pairs are copied to the deployment path.
             if self.cluster[instance.name].service == const.SERVICE_LIGHT:             
@@ -942,9 +933,18 @@ class Composer(object):
         # dump mygrid.env.json
         # utils.dump_json(join(cli_conf_dir, const.MYGRID_ENV_JSON_FILENAME), self._mygrid_env_json)
 
+        # NOTE: pharos.conf is now a static file, copy from management directory
         # dump cli.conf 用于pharos_cli
         # utils.dump_json(join(cli_bin_dir, 'cli.conf'), self._cli_conf)
-        self._dump_json(join(cli_conf_dir, 'pharos.conf'), RootConfigSchema().dump(self._pharos_conf))
+        # self._dump_json(join(cli_conf_dir, 'pharos.conf'), RootConfigSchema().dump(self._pharos_conf))
+        
+        # Copy static pharos.conf from management directory
+        static_pharos_conf = self._build_file('conf/pharos.conf')
+        if os.path.exists(static_pharos_conf):
+            local.sync(static_pharos_conf, join(cli_conf_dir, 'pharos.conf'))
+            logs.info(f'Copied static pharos.conf to {cli_conf_dir}')
+        else:
+            logs.warn(f'Static pharos.conf not found at {static_pharos_conf}')
 
 
     # def initialize_conf(self, conn: Context): #改动
