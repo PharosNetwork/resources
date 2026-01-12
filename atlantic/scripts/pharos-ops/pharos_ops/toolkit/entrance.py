@@ -251,6 +251,54 @@ def start(domain_files: str, service: str, extra_storage_args: str):
 
 
 @catch_exception
+def start_simple(service: str = None, extra_storage_args: str = ''):
+    """
+    Command: pharos-ops start (simplified version without domain.json)
+    Starts services directly without needing domain.json file
+    """
+    logs.info('Starting services (simplified mode)')
+    
+    from os.path import abspath, exists, join
+    from pharos_ops.toolkit.conn_group import local
+    
+    # Assume we're in the management directory (scripts/)
+    # For light mode, we start the pharos_light service directly
+    bin_dir = abspath('../bin')
+    pharos_conf_file = abspath('../conf/pharos.conf')
+    
+    # Check if pharos.conf exists
+    if not exists(pharos_conf_file):
+        logs.error(f'Config file not found: {pharos_conf_file}')
+        return
+    
+    # Start pharos_light service
+    # Assuming light mode deployment
+    work_dir = bin_dir
+    
+    # Check if libevmone.so exists
+    evmone_so = join(bin_dir, 'libevmone.so')
+    pharos_light = join(bin_dir, 'pharos_light')
+    
+    if not exists(pharos_light):
+        logs.error(f'pharos_light binary not found: {pharos_light}')
+        return
+    
+    # Start the service
+    if exists(evmone_so):
+        cmd = f"cd {work_dir}; LD_PRELOAD=./libevmone.so ./pharos_light -c ../conf/pharos.conf -d"
+    else:
+        cmd = f"cd {work_dir}; ./pharos_light -c ../conf/pharos.conf -d"
+    
+    logs.info(f'Starting pharos_light: {cmd}')
+    result = local.run(cmd)
+    
+    if result.ok:
+        logs.info('Services started successfully')
+    else:
+        logs.error(f'Failed to start services: {result.stderr}')
+
+
+@catch_exception
 def restart(domain_files: str, service: str, extra_storage_args: str):
     """
     Command: pharos-ops start

@@ -139,14 +139,20 @@ def status(domain_files, service):
     entrance.status(domain_files, service)
 
 
-@cli.command(help='Start with $domain_label.json')
-@click.argument('domain_files', nargs=-1, type=click.Path(exists=True), required=True)
+@cli.command(help='Start services')
+@click.argument('domain_files', nargs=-1, type=click.Path(exists=True), required=False)
 @click.option('--service', '-s', help='service [etcd|mygrid_service|portal|dog|txpool|controller|compute]]')
 @click.option('--extra-mygrid_service-args', '-a', help='extra storage args for storage start command', required=False)
 def start(domain_files, service, extra_mygrid_service_args):
-    for domain_file in domain_files:
-        click.echo(click.format_filename(domain_file))
-    entrance.start(domain_files, service, extra_mygrid_service_args)
+    if domain_files and len(domain_files) > 0:
+        # Old way: with domain.json files
+        logs.warn('Using domain.json is deprecated. Start will work without it in the future.')
+        for domain_file in domain_files:
+            click.echo(click.format_filename(domain_file))
+        entrance.start(domain_files, service, extra_mygrid_service_args)
+    else:
+        # New way: without domain.json
+        entrance.start_simple(service, extra_mygrid_service_args)
 
 
 @cli.command(help='Restart with $domain_label.json')
