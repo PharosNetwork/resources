@@ -42,6 +42,7 @@ from pharos_ops.toolkit.schemas.domain import *
 from pharos_ops.toolkit.conn_group import is_local, ConcurrentGroup, local
 from pharos_ops.toolkit.utils import safe_get_nested
 from pharos_ops.toolkit.conf import Generator
+from collections import OrderedDict
 
 def to_base64(file: str):
     with open(file, 'r') as fp:
@@ -736,7 +737,6 @@ class Composer(object):
 
             mygrid_env_json_file = join(instance.dir, f'conf/{const.MYGRID_ENV_JSON_FILENAME}')
             self._dump_json(mygrid_env_json_file, self._mygrid_env_json, conn=conn)
-
             # monitor conf
             monitor_json_file = join(instance.dir, f'conf/{const.MONITOR_CONF_JSON_FILENAME}')
             self._dump_json(monitor_json_file, self._monitor_conf_json, conn=conn)
@@ -973,11 +973,20 @@ class Composer(object):
                     self.sync_cli_bin(self.local_client_dir, deploy_client_host, self.deploy_dir)
 
     def update_conf(self, service=None):
-
         logs.info(f'update conf {self.domain_label}, service: {service}')
+        instance = self._instances()['127.0.0.1'][0]
+        mygrid_env_path = join(instance.dir,f"../client/conf/{const.MYGRID_ENV_JSON_FILENAME}")
+        need_write_mygrid = False
+        if os.path.exists(mygrid_env_path):
+            logs.info(f'akio :{mygrid_env_path}')
+            with open(mygrid_env_path,'r') as f:
+                need_write_mygrid = True
+                mygrid_info = json.load(f,object_pairs_hook=OrderedDict)
+                logs.info(f'akio :{mygrid_info}')
         # concurrent deploy multible conf
         with ConcurrentGroup(*self._instances(service).keys(), user=self.run_user) as group:
             group.call(self.deploy_host_conf, service)
+            group.call(self.deploy_client_conf, service)
 
         # deploy client conf
         deploy_client_host = None
@@ -996,7 +1005,8 @@ class Composer(object):
                     # 但是远程只执行svc_setmeta, 不依赖bin_dir
                     # 本地client目录同步至远程，copy softlink binary
                     self.sync_cli_conf(self.local_client_dir, deploy_client_host, self.deploy_dir)
-
+        if need_write_mygrid:
+            utils.dump_json(mygrid_env_path, mygrid_info, list_inline=True)
         # write conf to storage
         if self.is_light:
             with Connection(self.cluster[const.SERVICE_LIGHT].ip, user=self.run_user) as conn:
