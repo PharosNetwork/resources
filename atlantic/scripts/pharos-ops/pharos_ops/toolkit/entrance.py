@@ -36,6 +36,15 @@ def catch_exception(fn):
 
 
 @catch_exception
+def encode_key(key_path: str):
+    """
+    Command: pharos-ops encode-key
+    Encode key file to base64 format for use in pharos.conf
+    """
+    print(f"encoded key: {core.to_base64(key_path)}")
+
+
+@catch_exception
 def generate(deploy_file: str, need_genesis: bool = False, key_passwd: str = ""):
     """
     Command: pharos-ops configure

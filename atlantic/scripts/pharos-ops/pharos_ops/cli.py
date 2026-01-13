@@ -37,6 +37,12 @@ def cli(debug):
 
 # Generate and deploy commands removed - now using static pharos.conf
 # Deployment flow simplified to: set-ip -> bootstrap -> start
+
+@cli.command(help='Encode key file to base64')
+@click.argument('key_path', type=click.Path(exists=True))
+def encode_key(key_path):
+    click.echo(f"key path: {click.format_filename(key_path)}")
+    entrance.encode_key(key_path)
     
 @cli.command(help='find fork between two domains')
 @click.argument('domain1', nargs=1, type=click.Path(exists=True), required=True)
