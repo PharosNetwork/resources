@@ -321,6 +321,55 @@ def stop(domain_files: str, service: str, force=False):
 
 
 @catch_exception
+def stop_simple(service: str = None, force: bool = False):
+    """
+    Command: pharos-ops stop (simplified version without domain.json)
+    Stops services directly without needing domain.json file
+    """
+    logs.info(f'Stopping services (simplified mode), service: {service}, force: {force}')
+    
+    from os.path import abspath, exists, join
+    from pharos_ops.toolkit.conn_group import local
+    import subprocess
+    
+    # Assume we're in the management directory (scripts/)
+    # For light mode, we stop the pharos_light service directly
+    bin_dir = abspath('../bin')
+    
+    # Find and kill pharos_light process
+    # Use ps to find the process
+    try:
+        # Find pharos_light process
+        cmd = "ps -eo pid,cmd | grep pharos_light | grep -v grep | awk '{print $1}'"
+        result = local.run(cmd, hide=True)
+        
+        if result.ok and result.stdout.strip():
+            pids = result.stdout.strip().split('\n')
+            for pid in pids:
+                if pid:
+                    if force:
+                        # Force kill with SIGKILL
+                        kill_cmd = f'kill -9 {pid}'
+                        logs.info(f'Force stopping pharos_light (PID: {pid})')
+                    else:
+                        # Graceful kill with SIGTERM
+                        kill_cmd = f'kill -15 {pid}'
+                        logs.info(f'Gracefully stopping pharos_light (PID: {pid})')
+                    
+                    kill_result = local.run(kill_cmd, warn=True)
+                    if kill_result.ok:
+                        logs.info(f'Successfully stopped process {pid}')
+                    else:
+                        logs.error(f'Failed to stop process {pid}')
+            
+            logs.info('Services stopped successfully')
+        else:
+            logs.info('No pharos_light process found')
+    except Exception as e:
+        logs.error(f'Failed to stop services: {e}')
+
+
+@catch_exception
 def upgrade():
     """
     Command: pharos-ops upgrade

@@ -151,14 +151,20 @@ def restart(domain_files, service, extra_mygrid_service_args):
     entrance.restart(domain_files, service, extra_mygrid_service_args)
 
 
-@cli.command(help='Stop with $domain_label.json')
-@click.argument('domain_files', nargs=-1, type=click.Path(exists=True), required=True)
+@cli.command(help='Stop services')
+@click.argument('domain_files', nargs=-1, type=click.Path(exists=True), required=False)
 @click.option('--service', '-s', help='service [etcd|mygrid_service|portal|dog|txpool|controller|compute]]')
 @click.option('--force', '-f', is_flag=True, default=False, help='Force stop')
 def stop(domain_files, service, force):
-    for domain_file in domain_files:
-        click.echo(click.format_filename(domain_file))
-    entrance.stop(domain_files, service, force)
+    if domain_files and len(domain_files) > 0:
+        # Old way: with domain.json files
+        logs.warn('Using domain.json is deprecated. Stop will work without it in the future.')
+        for domain_file in domain_files:
+            click.echo(click.format_filename(domain_file))
+        entrance.stop(domain_files, service, force)
+    else:
+        # New way: without domain.json
+        entrance.stop_simple(service, force)
 
 
 @cli.command(help='Prepare integration testing')
