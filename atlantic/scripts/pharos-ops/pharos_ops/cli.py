@@ -38,11 +38,27 @@ def cli(debug):
 # Generate and deploy commands removed - now using static pharos.conf
 # Deployment flow simplified to: set-ip -> bootstrap -> start
 
+@cli.command(help='Generate domain keys (prime256v1 and bls12381)')
+@click.option('--output-dir', '-o', default='./keys', help='Output directory for generated keys')
+@click.option('--key-passwd', default='123abc', help='Password for key encryption')
+def generate_keys(output_dir, key_passwd):
+    click.echo(f"Generating keys to: {output_dir}")
+    entrance.generate_keys(output_dir, key_passwd)
+
 @cli.command(help='Encode key file to base64')
 @click.argument('key_path', type=click.Path(exists=True))
 def encode_key(key_path):
     click.echo(f"key path: {click.format_filename(key_path)}")
     entrance.encode_key(key_path)
+
+@cli.command(help='Encode key file to base64 and write to pharos.conf')
+@click.argument('key_path', type=click.Path(exists=True))
+@click.option('--pharos-conf', default='../conf/pharos.conf', help='Path to pharos.conf file')
+@click.option('--key-type', type=click.Choice(['domain', 'stabilizing']), required=True, help='Type of key: domain or stabilizing')
+def encode_key_to_conf(key_path, pharos_conf, key_type):
+    click.echo(f"Encoding {key_type} key from: {click.format_filename(key_path)}")
+    click.echo(f"Writing to: {pharos_conf}")
+    entrance.encode_key_to_conf(key_path, pharos_conf, key_type)
     
 @cli.command(help='find fork between two domains')
 @click.argument('domain1', nargs=1, type=click.Path(exists=True), required=True)

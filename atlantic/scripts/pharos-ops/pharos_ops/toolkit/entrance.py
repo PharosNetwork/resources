@@ -36,12 +36,129 @@ def catch_exception(fn):
 
 
 @catch_exception
+def generate_keys(output_dir: str, key_passwd: str = "123abc"):
+    """
+    Command: pharos-ops generate-keys
+    Generate domain keys (prime256v1 and bls12381) to specified directory
+    """
+    import os
+    from os.path import join, exists
+    from pharos_ops.toolkit.conn_group import local
+    from pharos_ops.toolkit import const
+    
+    # Create output directory if not exists
+    if not exists(output_dir):
+        os.makedirs(output_dir)
+        logs.info(f'Created directory: {output_dir}')
+    
+    # Generate prime256v1 key (domain key)
+    logs.info('Generating prime256v1 key...')
+    prime256v1_key = join(output_dir, 'domain.key')
+    prime256v1_pub = join(output_dir, 'domain.pub')
+    
+    local.run(f"openssl ecparam -name prime256v1 -genkey | openssl pkcs8 -topk8 -outform pem -out {prime256v1_key} -v2 aes-256-cbc -v2prf hmacWithSHA256 -passout pass:{key_passwd}")
+    
+    # Get public key
+    from pharos_ops.toolkit.conf import Generator
+    pubkey, _ = Generator._get_pubkey('prime256v1', prime256v1_key, key_passwd)
+    local.run(f"echo {pubkey} > {prime256v1_pub}")
+    logs.info(f'Generated prime256v1 key: {prime256v1_key}')
+    logs.info(f'Generated prime256v1 pub: {prime256v1_pub}')
+    
+    # Generate bls12381 key (stabilizing key)
+    logs.info('Generating bls12381 key...')
+    bls_key = join(output_dir, 'stabilizing.key')
+    bls_pub = join(output_dir, 'stabilizing.pub')
+    
+    # Find pharos_cli
+    pharos_cli_path = None
+    evmone_so_path = None
+    
+    # Try to find pharos_cli in common locations
+    possible_paths = [
+        '../bin/pharos_cli',
+        './bin/pharos_cli',
+        'bin/pharos_cli'
+    ]
+    
+    for path in possible_paths:
+        if exists(path):
+            pharos_cli_path = path
+            evmone_so_dir = os.path.dirname(path)
+            evmone_so_path = join(evmone_so_dir, 'libevmone.so')
+            break
+    
+    if not pharos_cli_path or not exists(pharos_cli_path):
+        logs.error('pharos_cli not found. Please ensure pharos_cli is in ../bin/ or ./bin/')
+        return
+    
+    # Generate BLS key using pharos_cli
+    ret = local.run(f"LD_PRELOAD={evmone_so_path} {pharos_cli_path} crypto -t gen-key -a bls12381 | tail -n 2")
+    bls_prikey = ret.stdout.split()[0].split(':')[1]
+    bls_pubkey = ret.stdout.split()[1].split(':')[1]
+    
+    local.run(f"echo {bls_prikey} > {bls_key}")
+    local.run(f"echo {bls_pubkey} > {bls_pub}")
+    logs.info(f'Generated bls12381 key: {bls_key}')
+    logs.info(f'Generated bls12381 pub: {bls_pub}')
+    
+    logs.info(f'\nKeys generated successfully in: {output_dir}')
+    logs.info('Files created:')
+    logs.info(f'  - domain.key (prime256v1 private key)')
+    logs.info(f'  - domain.pub (prime256v1 public key)')
+    logs.info(f'  - stabilizing.key (bls12381 private key)')
+    logs.info(f'  - stabilizing.pub (bls12381 public key)')
+
+
+@catch_exception
 def encode_key(key_path: str):
     """
     Command: pharos-ops encode-key
     Encode key file to base64 format for use in pharos.conf
     """
     print(f"encoded key: {core.to_base64(key_path)}")
+
+
+@catch_exception
+def encode_key_to_conf(key_path: str, pharos_conf: str, key_type: str):
+    """
+    Command: pharos-ops encode-key-to-conf
+    Encode key file to base64 and write to pharos.conf
+    """
+    import json
+    from os.path import exists
+    
+    # Check if pharos.conf exists
+    if not exists(pharos_conf):
+        logs.error(f'pharos.conf not found: {pharos_conf}')
+        return
+    
+    # Encode key
+    encoded_key = core.to_base64(key_path)
+    logs.info(f'Encoded key: {encoded_key}')
+    
+    # Read pharos.conf
+    with open(pharos_conf, 'r') as f:
+        pharos_data = json.load(f)
+    
+    # Update the appropriate key field
+    if 'aldaba' not in pharos_data:
+        pharos_data['aldaba'] = {}
+    if 'secret_config' not in pharos_data['aldaba']:
+        pharos_data['aldaba']['secret_config'] = {}
+    
+    if key_type == 'domain':
+        pharos_data['aldaba']['secret_config']['domain_key'] = encoded_key
+        logs.info('Updated domain_key in pharos.conf')
+    elif key_type == 'stabilizing':
+        pharos_data['aldaba']['secret_config']['stabilizing_key'] = encoded_key
+        logs.info('Updated stabilizing_key in pharos.conf')
+    
+    # Write back to pharos.conf
+    with open(pharos_conf, 'w') as f:
+        json.dump(pharos_data, f, indent=2)
+    
+    logs.info(f'Successfully updated {pharos_conf}')
 
 
 @catch_exception
