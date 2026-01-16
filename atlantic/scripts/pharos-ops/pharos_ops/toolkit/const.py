@@ -128,12 +128,13 @@ MYGRID_ULTRA_ENV_JSON_FILENAME = 'mygrid.ultra.env.json'
 MYGRID_ENV_JSON_FILENAME = 'mygrid.env.json'
 MONITOR_CONF_JSON_FILENAME = 'monitor.conf'
 
+PHAROS_CONF_JSON_FILENAME = 'pharos.conf'
+
 MYGRID_CLIENT_JSON = f'''
 {{
   "{MYGRID_CONFIG_NAME}": {{
     "mygrid_client_id" : "0",
-    "mygrid_conf_path" : "../conf/{MYGRID_CONF_JSON_FILENAME}",
-    "mygrid_env_path" : "../conf/{MYGRID_ENV_JSON_FILENAME}"
+    "pamir_conf_path" : "../conf/{PHAROS_CONF_JSON_FILENAME}"
   }}
 }}
 '''
