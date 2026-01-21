@@ -20,9 +20,9 @@ COPY bin /app/bin
 # Copy VERSION file to bin directory
 COPY VERSION /app/bin/VERSION
 
-# Copy ops tool (will switch to download after ops repo is public)
-COPY ops /app/ops
-RUN chmod +x /app/ops && \
+# Download ops tool from GitHub releases
+RUN curl -L https://github.com/PharosNetwork/ops/releases/latest/download/ops-linux-amd64 -o /app/ops && \
+    chmod +x /app/ops && \
     chmod +x /app/bin/*
 
 # Copy startup script
