@@ -51,6 +51,7 @@ else
 fi
 
 # Check if meta_store exists to determine if already bootstrapped
+# Config uses ../data which resolves to /data/data when working dir is /data/bin
 if [ -d "${DATA_DIR}/meta_store" ]; then
     echo "Found existing data at ${DATA_DIR}/meta_store"
     BOOTSTRAPPED=true
@@ -59,6 +60,7 @@ else
     BOOTSTRAPPED=false
 fi
 
+# Change to bin directory so relative paths in config work correctly
 cd /data/bin
 
 if [ "$BOOTSTRAPPED" = false ]; then
