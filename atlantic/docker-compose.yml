@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   pharos:
     image: pharos/atlantic:latest

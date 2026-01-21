@@ -6,6 +6,22 @@ set -e
 PHAROS_CONF="${PHAROS_CONF:-/data/pharos.conf}"
 GENESIS_CONF="${GENESIS_CONF:-/data/genesis.conf}"
 KEYS_DIR="${KEYS_DIR:-/data/keys}"
+DATA_DIR="${DATA_DIR:-/data/data}"
+
+echo "=== Pharos Node Startup ==="
+
+# Copy binaries from /app to /data (always refresh to ensure latest version)
+echo "Copying binaries from /app/bin to /data/bin..."
+rm -rf /data/bin
+cp -r /app/bin /data/bin
+chmod +x /data/bin/*
+
+# Copy ops tool
+echo "Copying ops tool..."
+cp /app/ops /data/ops
+chmod +x /data/ops
+
+echo "Binaries copied successfully"
 
 # Check if pharos.conf exists
 if [ ! -f "$PHAROS_CONF" ]; then
@@ -34,22 +50,12 @@ else
     echo "Found existing keys in $KEYS_DIR"
 fi
 
-# Extract data path from pharos.conf
-CONFIG_DATA_PATH=$(grep -oP '"meta_data"\s*:\s*"\K[^"]+' "$PHAROS_CONF" 2>/dev/null || echo "")
-
-if [ -z "$CONFIG_DATA_PATH" ]; then
-    echo "Error: Could not extract meta_data from pharos.conf"
-    exit 1
-fi
-
-echo "Data path from config: $CONFIG_DATA_PATH"
-
 # Check if meta_store exists to determine if already bootstrapped
-if [ -d "${CONFIG_DATA_PATH}/meta_store" ]; then
-    echo "Found existing data at ${CONFIG_DATA_PATH}/meta_store"
+if [ -d "${DATA_DIR}/meta_store" ]; then
+    echo "Found existing data at ${DATA_DIR}/meta_store"
     BOOTSTRAPPED=true
 else
-    echo "No existing data found at ${CONFIG_DATA_PATH}/meta_store"
+    echo "No existing data found at ${DATA_DIR}/meta_store"
     BOOTSTRAPPED=false
 fi
 

@@ -1,30 +1,35 @@
 FROM ubuntu:22.04
 
-# Install minimal dependencies
+# Install minimal dependencies and common tools
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     ca-certificates \
     curl \
+    vim \
+    less \
+    net-tools \
+    procps \
     && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /data
+# Store binaries in /app (won't be overwritten by volume mount)
+WORKDIR /app
 
-# Copy binaries to /data/bin
-COPY bin /data/bin
+# Copy binaries to /app/bin
+COPY bin /app/bin
 
 # Copy VERSION file to bin directory
-COPY VERSION /data/bin/VERSION
+COPY VERSION /app/bin/VERSION
 
 # Copy ops tool (will switch to download after ops repo is public)
-COPY ops /data/ops
-RUN chmod +x /data/ops && \
-    chmod +x /data/bin/*
+COPY ops /app/ops
+RUN chmod +x /app/ops && \
+    chmod +x /app/bin/*
 
 # Copy startup script
-COPY docker-entrypoint.sh /data/docker-entrypoint.sh
-RUN chmod +x /data/docker-entrypoint.sh
+COPY docker-entrypoint.sh /app/docker-entrypoint.sh
+RUN chmod +x /app/docker-entrypoint.sh
 
 # Expose ports
 EXPOSE 18100 18200 19000 20000
 
-CMD ["/data/docker-entrypoint.sh"]
+CMD ["/app/docker-entrypoint.sh"]
