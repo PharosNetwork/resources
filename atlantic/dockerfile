@@ -12,9 +12,12 @@ WORKDIR /app
 # Copy binaries
 COPY bin /app/bin
 
-# Download ops tool during build
-RUN curl -L https://github.com/PharosNetwork/ops/releases/latest/download/ops-linux-amd64 -o /app/ops && \
-    chmod +x /app/ops && \
+# Copy VERSION file to bin directory
+COPY VERSION /app/bin/VERSION
+
+# Copy ops tool (will switch to download after ops repo is public)
+COPY ops /app/ops
+RUN chmod +x /app/ops && \
     chmod +x /app/bin/*
 
 # Copy startup script
