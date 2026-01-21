@@ -1,0 +1,6 @@
+367116 job="pharos_testnet"
+86908 job="pharos_devnet"
+43279 job="atlantic_testnet"
+9679 job="node_exporter"
+   6 job="points"
+   6 job="points_prod"

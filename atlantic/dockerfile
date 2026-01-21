@@ -1,62 +1,28 @@
-FROM centos:7
+FROM ubuntu:22.04
 
-RUN mv /etc/yum.repos.d/CentOS-Base.repo /etc/yum.repos.d/CentOS-Base.repo.bak && \
-    curl -o /etc/yum.repos.d/CentOS-Base.repo http://mirrors.aliyun.com/repo/Centos-7.repo && \
-    yum clean all && yum makecache fast
-
-RUN yum -y update && \
-    yum -y install epel-release && \
-    yum -y install awscli socat jq tmux pigz gcc openssl openssl-devel bzip2-devel libffi-devel \
-    make wget tar git vim atop htop net-tools telnet nc  openssh-server openssh-clients which supervisor && \
-    yum -y groupinstall "Development Tools"
-
-RUN cd /usr/src && \
-    wget https://www.python.org/ftp/python/3.6.15/Python-3.6.15.tgz && \
-    tar xzf Python-3.6.15.tgz && \
-    cd Python-3.6.15 && \
-    ./configure --enable-optimizations && \
-    make altinstall && \
-    python3.6 -m ensurepip --upgrade && \
-    ln -s /usr/local/bin/python3.6 /usr/bin/python3 && \
-    ln -s /usr/local/bin/pip3.6 /usr/bin/pip3
-
-RUN pip3 install --upgrade pip && \
-    pip3 install pipenv==11.10.4 --user
-
-ENV LC_ALL=en_US.utf8
-ENV LANG=en_US.utf8
-ENV PIPENV_PIPFILE=/app/scripts/Pipfile
-
-RUN mkdir -p /var/run/sshd && \
-    mkdir -p /app && \
-    mkdir -p /data && \
-    echo 'root:password' | chpasswd && \
-    ssh-keygen -A && \
-    echo "StrictHostKeyChecking no" >> /etc/ssh/ssh_config
-
-# COPY local /root/.local
-# ENV PATH=$PATH:/root/.local/bin
+# Install minimal dependencies
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    ca-certificates \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
+# Copy binaries and ops tool
 COPY bin /app/bin
-COPY conf /app/conf
-COPY scripts /app/scripts
-COPY ./scripts/start.sh /app/scripts/start.sh
-COPY genesis.conf /app/genesis.conf
-COPY meta_tool_config.py /app/scripts/meta_tool_config.py
+COPY ops /app/ops
 
-RUN chmod +x /app/scripts/ops_prepare.sh && \
-    chmod +x /app/scripts/start.sh && \
-    /app/scripts/ops_prepare.sh
+# Download ops tool during build
+RUN curl -L https://github.com/PharosNetwork/ops/releases/latest/download/ops-linux-amd64 -o /app/ops && \
+    chmod +x /app/ops && \
+    chmod +x /app/bin/*
 
-RUN [ -f /root/.ssh/id_rsa ] || ssh-keygen -t rsa -f /root/.ssh/id_rsa -q -N "" && \
-    cat /root/.ssh/id_rsa.pub >> /root/.ssh/authorized_keys && \
-    rm -f /root/.ssh/known_hosts && \
-    chmod 600 /root/.ssh/authorized_keys && \
-    echo "Host *" >> /root/.ssh/config && \
-    echo "    StrictHostKeyChecking no" >> /root/.ssh/config && \
-    echo "    UserKnownHostsFile /dev/null" >> /root/.ssh/config && \
-    /bin/bash -c /usr/sbin/sshd -D 
+# Copy startup script
+COPY scripts/docker-entrypoint.sh /app/docker-entrypoint.sh
+RUN chmod +x /app/docker-entrypoint.sh
 
-CMD ["/app/scripts/start.sh"]
+# Expose ports
+EXPOSE 18100 18200 19000 20000
+
+CMD ["/app/docker-entrypoint.sh"]
