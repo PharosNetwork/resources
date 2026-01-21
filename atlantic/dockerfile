@@ -7,24 +7,24 @@ RUN apt-get update && \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /app
+WORKDIR /data
 
-# Copy binaries
-COPY bin /app/bin
+# Copy binaries to /data/bin
+COPY bin /data/bin
 
 # Copy VERSION file to bin directory
-COPY VERSION /app/bin/VERSION
+COPY VERSION /data/bin/VERSION
 
 # Copy ops tool (will switch to download after ops repo is public)
-COPY ops /app/ops
-RUN chmod +x /app/ops && \
-    chmod +x /app/bin/*
+COPY ops /data/ops
+RUN chmod +x /data/ops && \
+    chmod +x /data/bin/*
 
 # Copy startup script
-COPY docker-entrypoint.sh /app/docker-entrypoint.sh
-RUN chmod +x /app/docker-entrypoint.sh
+COPY docker-entrypoint.sh /data/docker-entrypoint.sh
+RUN chmod +x /data/docker-entrypoint.sh
 
 # Expose ports
 EXPOSE 18100 18200 19000 20000
 
-CMD ["/app/docker-entrypoint.sh"]
+CMD ["/data/docker-entrypoint.sh"]

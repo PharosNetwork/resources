@@ -28,7 +28,7 @@ export PORTAL_SSL_PWD="${PORTAL_SSL_PWD:-$CONSENSUS_KEY_PWD}"
 if [ ! -f "$KEYS_DIR/domain.key" ] || [ ! -f "$KEYS_DIR/stabilizing.key" ]; then
     echo "Keys not found in $KEYS_DIR, generating new keys..."
     mkdir -p "$KEYS_DIR"
-    /app/ops generate-keys -o "$KEYS_DIR"
+    /data/ops generate-keys -o "$KEYS_DIR"
     echo "Keys generated successfully"
 else
     echo "Found existing keys in $KEYS_DIR"
@@ -53,7 +53,7 @@ else
     BOOTSTRAPPED=false
 fi
 
-cd /app/bin
+cd /data/bin
 
 if [ "$BOOTSTRAPPED" = false ]; then
     # Check if genesis.conf exists (required for bootstrap)
