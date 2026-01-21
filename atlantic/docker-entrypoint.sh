@@ -74,18 +74,20 @@ if [ "$BOOTSTRAPPED" = false ]; then
     echo "Bootstrapping node..."
     echo "Running: pharos_cli genesis -c $PHAROS_CONF -g $GENESIS_CONF"
     
-    # Run bootstrap as main process
-    exec env LD_PRELOAD=./libevmone.so \
+    # Run bootstrap (not as exec, so we can continue after)
+    env LD_PRELOAD=./libevmone.so \
         CONSENSUS_KEY_PWD="$CONSENSUS_KEY_PWD" \
         PORTAL_SSL_PWD="$PORTAL_SSL_PWD" \
         ./pharos_cli genesis -c "$PHAROS_CONF" -g "$GENESIS_CONF"
-else
-    echo "Starting pharos node..."
-    echo "Running: pharos_light -c $PHAROS_CONF"
     
-    # Start pharos_light as main process (PID 1)
-    exec env LD_PRELOAD=./libevmone.so \
-        CONSENSUS_KEY_PWD="$CONSENSUS_KEY_PWD" \
-        PORTAL_SSL_PWD="$PORTAL_SSL_PWD" \
-        ./pharos_light -c "$PHAROS_CONF"
+    echo "Bootstrap completed successfully"
 fi
+
+echo "Starting pharos node..."
+echo "Running: pharos_light -c $PHAROS_CONF"
+
+# Start pharos_light as main process (PID 1)
+exec env LD_PRELOAD=./libevmone.so \
+    CONSENSUS_KEY_PWD="$CONSENSUS_KEY_PWD" \
+    PORTAL_SSL_PWD="$PORTAL_SSL_PWD" \
+    ./pharos_light -c "$PHAROS_CONF"
