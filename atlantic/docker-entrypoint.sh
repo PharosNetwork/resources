@@ -42,22 +42,14 @@ if [ -z "$CONFIG_DATA_PATH" ]; then
     exit 1
 fi
 
-# Convert relative path to absolute based on working directory
-# If path starts with ../, resolve it relative to /app/bin
-if [[ "$CONFIG_DATA_PATH" == ../* ]]; then
-    RESOLVED_DATA_PATH="/app/$(echo "$CONFIG_DATA_PATH" | sed 's|^\.\./||')"
-elif [[ "$CONFIG_DATA_PATH" == ./* ]]; then
-    RESOLVED_DATA_PATH="/app/bin/$(echo "$CONFIG_DATA_PATH" | sed 's|^\./||')"
-else
-    RESOLVED_DATA_PATH="$CONFIG_DATA_PATH"
-fi
+echo "Data path from config: $CONFIG_DATA_PATH"
 
 # Check if meta_store exists to determine if already bootstrapped
-if [ -d "${RESOLVED_DATA_PATH}/meta_store" ]; then
-    echo "Found existing data at ${RESOLVED_DATA_PATH}/meta_store"
+if [ -d "${CONFIG_DATA_PATH}/meta_store" ]; then
+    echo "Found existing data at ${CONFIG_DATA_PATH}/meta_store"
     BOOTSTRAPPED=true
 else
-    echo "No existing data found at ${RESOLVED_DATA_PATH}/meta_store"
+    echo "No existing data found at ${CONFIG_DATA_PATH}/meta_store"
     BOOTSTRAPPED=false
 fi
 
