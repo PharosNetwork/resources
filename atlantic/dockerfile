@@ -9,9 +9,8 @@ RUN apt-get update && \
 
 WORKDIR /app
 
-# Copy binaries and ops tool
+# Copy binaries
 COPY bin /app/bin
-COPY ops /app/ops
 
 # Download ops tool during build
 RUN curl -L https://github.com/PharosNetwork/ops/releases/latest/download/ops-linux-amd64 -o /app/ops && \
@@ -19,7 +18,7 @@ RUN curl -L https://github.com/PharosNetwork/ops/releases/latest/download/ops-li
     chmod +x /app/bin/*
 
 # Copy startup script
-COPY scripts/docker-entrypoint.sh /app/docker-entrypoint.sh
+COPY docker-entrypoint.sh /app/docker-entrypoint.sh
 RUN chmod +x /app/docker-entrypoint.sh
 
 # Expose ports
