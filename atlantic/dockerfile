@@ -1,14 +1,35 @@
 FROM ubuntu:22.04
 
-# Install minimal dependencies and common tools
+# Install dependencies and common tools
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     ca-certificates \
     curl \
+    wget \
     vim \
     less \
     net-tools \
     procps \
+    awscli \
+    socat \
+    jq \
+    tmux \
+    pigz \
+    gcc \
+    make \
+    tar \
+    git \
+    atop \
+    htop \
+    telnet \
+    netcat \
+    openssh-server \
+    openssh-client \
+    supervisor \
+    libssl-dev \
+    libbz2-dev \
+    libffi-dev \
+    build-essential \
     && rm -rf /var/lib/apt/lists/*
 
 # Store binaries in /app (won't be overwritten by volume mount)
