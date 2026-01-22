@@ -14,8 +14,6 @@ RUN apt-get update && \
     less \
     net-tools \
     procps \
-    awscli \
-    socat \
     jq \
     tmux \
     pigz \
@@ -23,13 +21,11 @@ RUN apt-get update && \
     make \
     tar \
     git \
-    atop \
     htop \
     telnet \
     netcat \
     openssh-server \
     openssh-client \
-    supervisor \
     libssl-dev \
     libbz2-dev \
     libffi-dev \
