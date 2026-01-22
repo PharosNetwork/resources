@@ -9,7 +9,7 @@ services:
       - KEYS_DIR=/data/keys
     volumes:
       # Mount data directory
-      - /data/pharos:/data
+      - /data/$WORKSPACE:/data
     ports:
       - "18100:18100"  # HTTP RPC
       - "18200:18200"  # WebSocket
