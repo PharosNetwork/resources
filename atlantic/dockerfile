@@ -32,8 +32,7 @@ RUN apt-get update && \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-# Store binaries in /app (won't be overwritten by volume mount)
-WORKDIR /app
+WORKDIR /data
 
 # Copy binaries to /app/bin
 COPY bin /app/bin
