@@ -1,6 +1,6 @@
 services:
   pharos:
-    image: pharos/atlantic:latest
+    image: public.ecr.aws/k2g7b7g1/pharos:latest
     container_name: pharos-node
     environment:
       - CONSENSUS_KEY_PWD=YOUR_PASSWORD_HERE  # Change this to your password

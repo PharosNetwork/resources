@@ -34,11 +34,8 @@ RUN apt-get update && \
 
 WORKDIR /data
 
-# Copy binaries to /app/bin
+# Copy binaries to /app/bin (includes pharos_cli, pharos_light, libevmone.so, VERSION)
 COPY bin /app/bin
-
-# Copy VERSION file to bin directory
-COPY VERSION /app/bin/VERSION
 
 # Download ops tool from GitHub releases
 RUN curl -L https://github.com/PharosNetwork/ops/releases/latest/download/ops-linux-amd64 -o /app/ops && \
