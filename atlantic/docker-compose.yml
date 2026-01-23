@@ -1,0 +1,28 @@
+services:
+  pharos:
+    image: public.ecr.aws/k2g7b7g1/pharos:latest
+    container_name: pharos-node
+    environment:
+      - CONSENSUS_KEY_PWD=YOUR_PASSWORD_HERE  # Change this to your password
+      - PHAROS_CONF=/data/pharos.conf
+      - GENESIS_CONF=/data/genesis.conf
+      - KEYS_DIR=/data/keys
+    volumes:
+      # Mount data directory
+      - /data/$WORKSPACE:/data
+    ports:
+      - "18100:18100"  # HTTP RPC
+      - "18200:18200"  # WebSocket
+      - "19000:19000"  # P2P TCP
+      - "20000:20000"  # RPC
+    restart: unless-stopped
+    ulimits:
+      nofile:
+        soft: 655350
+        hard: 655350
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:18100"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
