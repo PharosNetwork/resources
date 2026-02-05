@@ -16,6 +16,13 @@ rm -rf /data/bin
 cp -r /app/bin /data/bin
 chmod +x /data/bin/*
 
+# Download VERSION file if not exists
+NETWORK="${NETWORK:-atlantic}"
+if [ ! -f "/data/bin/VERSION" ]; then
+    echo "Downloading VERSION file for ${NETWORK} network..."
+    curl -sL "https://raw.githubusercontent.com/PharosNetwork/resources/refs/heads/main/${NETWORK}.version" -o /data/bin/VERSION || echo "Warning: Failed to download VERSION file"
+fi
+
 # Copy ops tool
 echo "Copying ops tool..."
 cp /app/ops /data/ops
