@@ -12,15 +12,21 @@ echo "=== Pharos Node Startup ==="
 
 # Copy binaries from /app to /data (always refresh to ensure latest version)
 echo "Copying binaries from /app/bin to /data/bin..."
+
+# Backup VERSION file if exists
+if [ -f "/data/bin/VERSION" ]; then
+    cp /data/bin/VERSION /tmp/VERSION.bak
+fi
+
 rm -rf /data/bin
 cp -r /app/bin /data/bin
 chmod +x /data/bin/*
 
-# Download VERSION file if not exists
-NETWORK="${NETWORK:-atlantic}"
-if [ ! -f "/data/bin/VERSION" ]; then
-    echo "Downloading VERSION file for ${NETWORK} network..."
-    curl -sL "https://raw.githubusercontent.com/PharosNetwork/resources/refs/heads/main/${NETWORK}.version" -o /data/bin/VERSION || echo "Warning: Failed to download VERSION file"
+# Restore VERSION file if was backed up
+if [ -f "/tmp/VERSION.bak" ]; then
+    cp /tmp/VERSION.bak /data/bin/VERSION
+    rm -f /tmp/VERSION.bak
+    echo "Restored user-provided VERSION file"
 fi
 
 # Copy ops tool
