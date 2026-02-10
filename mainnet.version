@@ -1,5 +1,9 @@
 {
-  "3.10.0": {
+  "Pharos-Mainnet-260214": {
+    "version": 11,
+    "epoch": 383
+  },
+  "Pharos-Mainnet-251212": {
     "version": 10,
     "epoch": 0
   }
