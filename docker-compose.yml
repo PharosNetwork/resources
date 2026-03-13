@@ -18,8 +18,8 @@ services:
     restart: unless-stopped
     ulimits:
       nofile:
-        soft: 655350
-        hard: 655350
+        soft: 10000000
+        hard: 10000000
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:18100"]
       interval: 30s
