@@ -1,8 +1,7 @@
 {
   "Pharos-Atlantic-260304": {
     "version": 12,
-    "epoch": 6476,
-    "commit": "3e45e70f"
+    "epoch": 6476
   },
   "Pharos-Atlantic-260126": {
     "version": 11,
