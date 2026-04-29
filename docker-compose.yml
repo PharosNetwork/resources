@@ -21,7 +21,7 @@ services:
         soft: 10000000
         hard: 10000000
     healthcheck:
-      test: ["CMD", "curl", "-sf", "http://localhost:18100"]
+      test: ["CMD", "curl", "-sf", "-X", "POST", "-H", "Content-Type: application/json", "-d", "{\"jsonrpc\":\"2.0\",\"method\":\"net_version\",\"params\":[],\"id\":1}", "http://localhost:18100"]
       interval: 30s
       timeout: 10s
       retries: 3
