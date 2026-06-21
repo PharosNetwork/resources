@@ -1,4 +1,9 @@
 {
+  "Pharos-Mainnet-260625": {
+    "version": 14,
+    "epoch": 1170,
+    "commit": "b5f7821d4"
+  },
   "Pharos-Mainnet-260414": {
     "version": 12,
     "epoch": 737,
