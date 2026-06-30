@@ -1,10 +1,19 @@
-FROM ubuntu:22.04
+FROM ubuntu:24.04
 
 # Set non-interactive mode and configure timezone
 ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=Asia/Shanghai
 
-# Install dependencies and common tools
+# Install runtime + ops tooling only.
+#
+# Base image MUST be ubuntu:24.04 (GLIBC 2.39): pharos_cli / pharos_light are
+# prebuilt in an ubuntu:24.04 + GCC13 container (v0.14.2+ toolchain) and require
+# GLIBC >= 2.38. ubuntu:22.04 (GLIBC 2.35) cannot run them ("GLIBC_2.38 not found").
+#
+# No compiler is installed: the binaries are statically linked against
+# libstdc++/libgcc, and docker-entrypoint.sh only copies them and execs
+# pharos_light -- nothing is compiled on-image. Their only runtime NEEDED libs
+# are libm/libc (base) + libz (zlib1g) + liblzma (liblzma5).
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     ca-certificates \
@@ -17,28 +26,16 @@ RUN apt-get update && \
     jq \
     tmux \
     pigz \
-    gcc-12 \
-    g++-12 \
-    make \
     tar \
     git \
     htop \
     telnet \
-    netcat \
+    netcat-openbsd \
     openssh-server \
     openssh-client \
-    libssl-dev \
-    libbz2-dev \
-    libffi-dev \
-    build-essential \
+    zlib1g \
+    liblzma5 \
     && rm -rf /var/lib/apt/lists/*
-
-# Make gcc-12/g++-12 the default toolchain for on-image compilation.
-# The runtime image compiles user-supplied sources on demand; align its
-# default compiler with the upgraded build toolchain (was gcc-11, the
-# ubuntu:22.04 default, before this change).
-RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-12 100 && \
-    update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-12 100
 
 WORKDIR /data
 
