@@ -17,7 +17,8 @@ RUN apt-get update && \
     jq \
     tmux \
     pigz \
-    gcc \
+    gcc-12 \
+    g++-12 \
     make \
     tar \
     git \
@@ -31,6 +32,13 @@ RUN apt-get update && \
     libffi-dev \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
+
+# Make gcc-12/g++-12 the default toolchain for on-image compilation.
+# The runtime image compiles user-supplied sources on demand; align its
+# default compiler with the upgraded build toolchain (was gcc-11, the
+# ubuntu:22.04 default, before this change).
+RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-12 100 && \
+    update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-12 100
 
 WORKDIR /data
 
