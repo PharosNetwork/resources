@@ -50,8 +50,8 @@ if [ -z "$CONSENSUS_KEY_PWD" ]; then
     exit 1
 fi
 
-# Set PORTAL_SSL_PWD to same value if not set
-export PORTAL_SSL_PWD="${PORTAL_SSL_PWD:-$CONSENSUS_KEY_PWD}"
+# Set BLS_KEY_PWD to same value if not set
+export BLS_KEY_PWD="${BLS_KEY_PWD:-$CONSENSUS_KEY_PWD}"
 
 # Check if keys exist, if not generate them
 if [ ! -f "$KEYS_DIR/domain.key" ] || [ ! -f "$KEYS_DIR/stabilizing.key" ]; then
@@ -89,7 +89,7 @@ if [ "$BOOTSTRAPPED" = false ]; then
     
     # Run bootstrap (not as exec, so we can continue after)
     env CONSENSUS_KEY_PWD="$CONSENSUS_KEY_PWD" \
-        PORTAL_SSL_PWD="$PORTAL_SSL_PWD" \
+        BLS_KEY_PWD="$BLS_KEY_PWD" \
         ./pharos_cli genesis -c "$PHAROS_CONF" -g "$GENESIS_CONF"
     
     echo "Bootstrap completed successfully"
@@ -100,5 +100,5 @@ echo "Running: pharos_light -c $PHAROS_CONF"
 
 # Start pharos_light as main process (PID 1)
 exec env CONSENSUS_KEY_PWD="$CONSENSUS_KEY_PWD" \
-    PORTAL_SSL_PWD="$PORTAL_SSL_PWD" \
+    BLS_KEY_PWD="$BLS_KEY_PWD" \
     ./pharos_light -c "$PHAROS_CONF"
