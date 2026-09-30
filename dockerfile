@@ -20,6 +20,7 @@ RUN apt-get update && \
     curl \
     wget \
     vim \
+    xxd \
     less \
     net-tools \
     procps \
