@@ -1,4 +1,9 @@
 {
+  "Pharos-Atlantic-261118": {
+    "version": 18,
+    "epoch": 18911,
+    "commit": "784212809"
+  },
   "Pharos-Atlantic-260930": {
     "version": 17,
     "epoch": 16570,
